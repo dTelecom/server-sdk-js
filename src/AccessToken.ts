@@ -1,5 +1,6 @@
 import * as jwt from 'jsonwebtoken';
 import { ClaimGrants, VideoGrant } from './grants';
+import KeyEncoder from "key-encoder";
 
 // 6 hours
 const defaultTTL = 6 * 60 * 60;
@@ -112,6 +113,7 @@ export class AccessToken {
       issuer: this.apiKey,
       expiresIn: this.ttl,
       notBefore: 0,
+      algorithm: 'ES256',
     };
     if (this.identity) {
       opts.subject = this.identity;
@@ -119,7 +121,11 @@ export class AccessToken {
     } else if (this.grants.video?.roomJoin) {
       throw Error('identity is required for join but not set');
     }
-    return jwt.sign(this.grants, this.apiSecret, opts);
+
+    let keyEncoder = new KeyEncoder('secp256k1');
+    let pemPrivateKey = keyEncoder.encodePrivate(this.apiSecret, 'raw', 'pem')
+
+    return jwt.sign(this.grants, pemPrivateKey, opts);
   }
 }
 
