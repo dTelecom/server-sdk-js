@@ -36,6 +36,8 @@ export class AccessToken {
 
   private grants: ClaimGrants;
 
+  private keyEncoder: KeyEncoder;
+
   identity?: string;
 
   ttl?: number | string;
@@ -66,6 +68,7 @@ export class AccessToken {
     this.apiKey = apiKey;
     this.apiSecret = apiSecret;
     this.grants = {};
+    this.keyEncoder = new KeyEncoder('secp256k1');
     this.identity = options?.identity;
     this.ttl = options?.ttl || defaultTTL;
     if (options?.metadata) {
@@ -122,10 +125,23 @@ export class AccessToken {
       throw Error('identity is required for join but not set');
     }
 
-    let keyEncoder = new KeyEncoder('secp256k1');
-    let pemPrivateKey = keyEncoder.encodePrivate(this.apiSecret, 'raw', 'pem')
+    const pemPrivateKey = this.keyEncoder.encodePrivate(this.apiSecret, 'raw', 'pem')
 
     return jwt.sign(this.grants, pemPrivateKey, opts);
+  }
+
+  /**
+   * @returns wss url
+   */
+  getWsUrl(): string {
+    const urlPool = [
+      "wss://2499479479.dtel.network",
+      "wss://1097669481.dtel.network",
+      "wss://3630803538.dtel.network",
+      "wss://1742105714.dtel.network",
+    ];
+
+    return urlPool[Math.floor(Math.random() * urlPool.length)];
   }
 }
 
