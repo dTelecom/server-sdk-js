@@ -1,6 +1,9 @@
-import * as jwt from 'jsonwebtoken';
-import { ClaimGrants, VideoGrant } from './grants';
-import KeyEncoder from "key-encoder";
+import * as jwt from 'jsonwebtoken'
+import KeyEncoder from "key-encoder"
+import nearbySort from "nearby-sort"
+import geoIp from "geoip-lite"
+import {ClaimGrants, VideoGrant} from './grants'
+import {getAllNode} from "./contract/contract"
 
 // 6 hours
 const defaultTTL = 6 * 60 * 60;
@@ -133,15 +136,27 @@ export class AccessToken {
   /**
    * @returns wss url
    */
-  getWsUrl(): string {
-    const urlPool = [
-      "wss://2499479479.dtel.network",
-      "wss://1097669481.dtel.network",
-      "wss://3630803538.dtel.network",
-      "wss://1742105714.dtel.network",
-    ];
+  async getWsUrl(clientIp?: string): Promise<string> {
+    let nodes = await getAllNode();
+    const location = clientIp ? geoIp.lookup(clientIp)?.ll : null;
 
-    return urlPool[Math.floor(Math.random() * urlPool.length)];
+    // tmp filter by this working ip addresses
+    const allowed = [
+      "2499479479",
+      "1097669481",
+      "3630803538",
+      "1742105714",
+    ];
+    nodes = nodes.filter(item => allowed.includes(item.ip));
+
+    let urls = nodes.map((item) => (`wss://${item.ip}.dtel.network`)).sort(() => 0.5 - Math.random());
+
+    if (location) {
+      const ascSortedData = await nearbySort({lat: location?.[0], long: location?.[1]}, nodes);
+      urls = ascSortedData.map((item) => (`wss://${item.ip}.dtel.network`));
+    }
+
+    return urls[0];
   }
 }
 
