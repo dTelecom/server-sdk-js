@@ -76,8 +76,8 @@ export class IngressClient extends ServiceBase {
 
   /**
    * @param host hostname including protocol. i.e. 'https://cluster.livekit.io'
-   * @param apiKey API Key, can be set in env var LIVEKIT_API_KEY
-   * @param secret API Secret, can be set in env var LIVEKIT_API_SECRET
+   * @param apiKey API Key, can be set in env var API_KEY
+   * @param secret API Secret, can be set in env var API_SECRET
    */
   constructor(host: string, apiKey?: string, secret?: string) {
     super(apiKey, secret);

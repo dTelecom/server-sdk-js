@@ -47,15 +47,15 @@ export class AccessToken {
 
   /**
    * Creates a new AccessToken
-   * @param apiKey API Key, can be set in env LIVEKIT_API_KEY
-   * @param apiSecret Secret, can be set in env LIVEKIT_API_SECRET
+   * @param apiKey API Key, can be set in env API_KEY
+   * @param apiSecret Secret, can be set in env API_SECRET
    */
   constructor(apiKey?: string, apiSecret?: string, options?: AccessTokenOptions) {
     if (!apiKey) {
-      apiKey = process.env.LIVEKIT_API_KEY;
+      apiKey = process.env.API_KEY;
     }
     if (!apiSecret) {
-      apiSecret = process.env.LIVEKIT_API_SECRET;
+      apiSecret = process.env.API_SECRET;
     }
     if (!apiKey || !apiSecret) {
       throw Error('api-key and api-secret must be set');
