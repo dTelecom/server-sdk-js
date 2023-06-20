@@ -1,6 +1,6 @@
 # Server API for JS
 
-Javascript/Typescript APIs to manage rooms and to create access tokens. This library is designed to work with [livekit-server](https://github.com/livekit/livekit-server). Use it with a Node.js backend to manage access to LiveKit.
+Javascript/Typescript APIs to manage rooms and to create access tokens.
 
 ## Installation
 
@@ -46,7 +46,7 @@ import { AccessToken } from 'server-js-sdk';
 // client joins
 const roomName = 'name-of-room';
 // identifier to be used for participant.
-// it's available as LocalParticipant.identity with livekit-client SDK
+// it's available as LocalParticipant.identity with client SDK
 const participantName = 'user-name';
 
 const at = new AccessToken('api-key', 'secret-key', {
@@ -85,8 +85,8 @@ This will allow the participant to subscribe to tracks, but not publish their ow
 
 ```typescript
 import { RoomServiceClient, Room } from 'server-js-sdk';
-const livekitHost = 'https://my.livekit.host';
-const svc = new RoomServiceClient(livekitHost, 'api-key', 'secret-key');
+const host = 'https://my.host';
+const svc = new RoomServiceClient(host, 'api-key', 'secret-key');
 
 // list rooms
 svc.listRooms().then((rooms: Room[]) => {
@@ -112,7 +112,7 @@ svc.deleteRoom('myroom').then(() => {
 
 ## Webhooks
 
-The JS SDK also provides helper functions to decode and verify webhook callbacks. While verification is optional, it ensures the authenticity of the message. See [webhooks guide](https://docs.livekit.io/guides/webhooks) for details.
+The JS SDK also provides helper functions to decode and verify webhook callbacks. While verification is optional, it ensures the authenticity of the message.
 
 Check out [example projects](examples) for full examples of webhooks integration.
 
