@@ -4,8 +4,8 @@ import ipInt from "ip-to-int"
 import geoIp from "geoip-lite"
 import ABI from "./ABI"
 
-const WEB3_GAS_LIMIT = 3000000
-const WEB3_GAS_PRICE = "2000000000"
+const WEB3_GAS_LIMIT = process.env.WEB3_GAS_LIMIT || 3000000
+const WEB3_GAS_PRICE = process.env.WEB3_GAS_PRICE || "4000000000"
 
 const provider = new Web3.providers.HttpProvider(process.env.WEB3_PROVIDER!)
 const web3 = new Web3(provider)
