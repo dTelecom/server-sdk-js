@@ -1,5 +1,5 @@
 {
-  "name": "@dtelecom/server-js-sdk",
+  "name": "@dtelecom/server-sdk-js",
   "version": "1.0.0",
   "description": "Server-side SDK",
   "main": "dist/index.js",
