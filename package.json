@@ -21,7 +21,7 @@
   "dependencies": {
     "axios": "^0.21.0",
     "camelcase-keys": "^7.0.0",
-    "geoip-lite": "^1.4.7",
+    "fast-geoip": "^1.1.88",
     "ip-to-int": "^0.3.1",
     "jsonwebtoken": "^8.5.1",
     "key-encoder": "^2.0.3",

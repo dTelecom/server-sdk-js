@@ -1,7 +1,7 @@
 import Web3 from "web3"
 // @ts-ignore
 import ipInt from "ip-to-int"
-import geoIp from "geoip-lite"
+import geoIp from "fast-geoip"
 import ABI from "./ABI"
 
 const WEB3_GAS_LIMIT = Number(process.env.WEB3_GAS_LIMIT) || 3000000
@@ -26,9 +26,9 @@ export interface IFormattedNodeItem extends IAllNodeResponseItem {
   long?: number
 }
 
-const formatNode = (node: IAllNodeResponseItem): IFormattedNodeItem => {
+const formatNode = async (node: IAllNodeResponseItem): Promise<IFormattedNodeItem> => {
   const formattedIp = ipInt(node.ip).toIP()
-  const location = geoIp.lookup(formattedIp)
+  const location = await geoIp.lookup(formattedIp)
 
   return {
     ...location,
@@ -39,7 +39,7 @@ const formatNode = (node: IAllNodeResponseItem): IFormattedNodeItem => {
   }
 }
 
-export const getAllNode = async (): Promise<IFormattedNodeItem[]> => contract.methods
+export const getAllNode = async (): Promise<IFormattedNodeItem[]> => Promise.all(contract.methods
       .getAllNode()
       .call()
-      .then((result: IAllNodeResponseItem[]) => result.map(formatNode))
+      .then((result: IAllNodeResponseItem[]) => result.map(formatNode)))
