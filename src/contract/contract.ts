@@ -39,7 +39,11 @@ const formatNode = async (node: IAllNodeResponseItem): Promise<IFormattedNodeIte
   }
 }
 
-export const getAllNode = async (): Promise<IFormattedNodeItem[]> => Promise.all(contract.methods
-      .getAllNode()
-      .call()
-      .then((result: IAllNodeResponseItem[]) => result.map(formatNode)))
+export const getAllNode = async (): Promise<IFormattedNodeItem[]> => {
+  const nodes = await contract.methods
+    .getAllNode()
+    .call()
+
+  return Promise.all(nodes.map(formatNode))
+}
+
