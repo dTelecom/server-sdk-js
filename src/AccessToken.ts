@@ -30,6 +30,11 @@ export interface AccessTokenOptions {
    * custom metadata to be passed to participants
    */
   metadata?: string;
+
+  /**
+   * custom metadata to be passed to participants
+   */
+  WebHookURL?: string;
 }
 
 export class AccessToken {
@@ -107,6 +112,10 @@ export class AccessToken {
 
   set sha256(sha: string | undefined) {
     this.grants.sha256 = sha;
+  }
+
+  set WebHookURL(url: string | undefined) {
+    this.grants.WebHookURL = url;
   }
 
   /**

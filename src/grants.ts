@@ -47,4 +47,5 @@ export interface ClaimGrants {
   video?: VideoGrant;
   metadata?: string;
   sha256?: string;
+  WebHookURL?: string;
 }
