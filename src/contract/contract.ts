@@ -45,4 +45,12 @@ export const getAllNode = async (): Promise<IFormattedNodeItem[]> => {
   return Promise.all(nodes.map(formatNode))
 }
 
+export const getNodeByAddress = async (address: string): Promise<IFormattedNodeItem> => {
+  const tx = await contract.methods.nodeByAddress(address)
+  const gas = await estimateGas(tx)
+  const node = await tx.call({gas})
+
+  return formatNode(node)
+}
+
 const estimateGas = async (tx: any) => (await tx.estimateGas()) + 500000
