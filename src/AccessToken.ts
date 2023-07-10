@@ -1,9 +1,10 @@
-import * as jwt from 'jsonwebtoken'
-import KeyEncoder from "key-encoder"
-import nearbySort from "nearby-sort"
-import geoIp from "fast-geoip"
-import {ClaimGrants, VideoGrant} from './grants'
-import {getAllNode} from "./contract/contract"
+import * as jwt from 'jsonwebtoken';
+import KeyEncoder from "key-encoder";
+import nearbySort from "nearby-sort";
+import geoIp from "fast-geoip";
+import axios from "axios";
+import {ClaimGrants, VideoGrant} from './grants';
+import {getAllNode, IFormattedNodeItem} from "./contract/contract";
 
 // 6 hours
 const defaultTTL = 6 * 60 * 60;
@@ -68,8 +69,8 @@ export class AccessToken {
       // check against document rather than window because deno provides window
       console.error(
         'You should not include your API secret in your web client bundle.\n\n' +
-          'Your web client should request a token from your backend server which should then use ' +
-          'the API secret to generate a token. See https://docs.livekit.io/client/connect/',
+        'Your web client should request a token from your backend server which should then use ' +
+        'the API secret to generate a token. See https://docs.livekit.io/client/connect/',
       );
     }
 
@@ -137,7 +138,7 @@ export class AccessToken {
       throw Error('identity is required for join but not set');
     }
 
-    const pemPrivateKey = this.keyEncoder.encodePrivate(this.apiSecret, 'raw', 'pem')
+    const pemPrivateKey = this.keyEncoder.encodePrivate(this.apiSecret, 'raw', 'pem');
 
     return jwt.sign(this.grants, pemPrivateKey, opts);
   }
@@ -145,9 +146,9 @@ export class AccessToken {
   /**
    * @returns wss url
    */
-  async getWsUrl(clientIp?: string): Promise<string> {
+  async getWsUrl(serverIp?: string, clientIp?: string): Promise<string> {
     let nodes = await getAllNode();
-    const location = clientIp ? await geoIp.lookup(clientIp) : null;
+    const location = serverIp ? await geoIp.lookup(serverIp) : null;
 
     // tmp filter by this working ip addresses
     const allowed = [
@@ -158,14 +159,35 @@ export class AccessToken {
     ];
     nodes = nodes.filter(item => allowed.includes(item.ip));
 
-    let urls = nodes.map((item) => (`wss://${item.ip}.dtel.network`)).sort(() => 0.5 - Math.random());
-
     if (location?.ll) {
-      const ascSortedData = await nearbySort({lat: location.ll[0], long: location.ll[1]}, nodes);
-      urls = ascSortedData.map((item) => (`wss://${item.ip}.dtel.network`));
+      nodes = await nearbySort({lat: location.ll[0], long: location.ll[1]}, nodes);
     }
 
-    return urls[0];
+    const address = await this.requestAddressForClient(nodes, clientIp);
+
+    return address;
+  }
+
+  async requestAddressForClient(nodes: IFormattedNodeItem[], clientIp?: string) {
+    let address = `wss://${nodes[0].ip}.dtel.network`;
+
+    if (!clientIp) {
+      return address;
+    }
+
+    for (const node of nodes) {
+      const response = await axios.get<{ domain: string }>(`https://${node.ip}.dtel.network/relevant`, {
+        data: {ip: clientIp},
+        timeout: 3000
+      }).catch(() => null);
+
+      if (response?.data.domain) {
+        address = `wss://${response.data.domain}`;
+        break;
+      }
+    }
+
+    return address;
   }
 }
 
@@ -174,13 +196,19 @@ export class TokenVerifier {
 
   private apiSecret: string;
 
+  private keyEncoder: KeyEncoder;
+
   constructor(apiKey: string, apiSecret: string) {
     this.apiKey = apiKey;
     this.apiSecret = apiSecret;
+    this.keyEncoder = new KeyEncoder('secp256k1');
   }
 
   verify(token: string): ClaimGrants {
-    const decoded = jwt.verify(token, this.apiSecret, { issuer: this.apiKey });
+    const pemPrivateKey = this.keyEncoder.encodePublic(this.apiSecret, 'raw', 'pem');
+
+    const decoded = jwt.verify(token, pemPrivateKey, {issuer: this.apiKey, algorithms: ['ES256']});
+
     if (!decoded) {
       throw Error('invalid token');
     }

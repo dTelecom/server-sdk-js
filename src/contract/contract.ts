@@ -16,6 +16,7 @@ const contract = new web3.eth.Contract(ABI, process.env.CONTRACT_ADDRESS, {
 interface IAllNodeResponseItem {
   ip: string
   active: boolean
+  key: string
 }
 
 export interface IFormattedNodeItem extends IAllNodeResponseItem {
