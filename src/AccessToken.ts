@@ -1,7 +1,5 @@
 import * as jwt from 'jsonwebtoken';
 import KeyEncoder from "key-encoder";
-import nearbySort from "nearby-sort";
-import geoIp from "fast-geoip";
 import axios from "axios";
 import {ClaimGrants, VideoGrant} from './grants';
 import {getAllNode, IFormattedNodeItem} from "./contract/contract";
@@ -146,9 +144,8 @@ export class AccessToken {
   /**
    * @returns wss url
    */
-  async getWsUrl(serverIp?: string, clientIp?: string): Promise<string> {
+  async getWsUrl(clientIp?: string): Promise<string> {
     let nodes = await getAllNode();
-    const location = serverIp ? await geoIp.lookup(serverIp) : null;
 
     // tmp filter by this working ip addresses
     const allowed = [
@@ -157,11 +154,7 @@ export class AccessToken {
       "3630803538",
       "1742105714",
     ];
-    nodes = nodes.filter(item => allowed.includes(item.ip));
-
-    if (location?.ll) {
-      nodes = await nearbySort({lat: location.ll[0], long: location.ll[1]}, nodes);
-    }
+    nodes = nodes.filter(item => allowed.includes(item.ip)).sort(() => 0.5 - Math.random());
 
     const address = await this.requestAddressForClient(nodes, clientIp);
 

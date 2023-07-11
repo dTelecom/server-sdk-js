@@ -1,6 +1,6 @@
 {
   "name": "@dtelecom/server-sdk-js",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "Server-side SDK",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -21,11 +21,9 @@
   "dependencies": {
     "axios": "^0.21.0",
     "camelcase-keys": "^7.0.0",
-    "fast-geoip": "^1.1.88",
     "ip-to-int": "^0.3.1",
     "jsonwebtoken": "^8.5.1",
     "key-encoder": "^2.0.3",
-    "nearby-sort": "^1.1.1",
     "protobufjs": "^6.10.2",
     "web3": "^1.10.0",
     "web3-utils": "^1.10.0"
