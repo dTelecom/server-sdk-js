@@ -149,10 +149,10 @@ export class AccessToken {
 
     // tmp filter by this working ip addresses
     const allowed = [
-      "2499479479",
-      "1097669481",
-      "3630803538",
-      "1742105714",
+      "858160983",
+      "860148438",
+      "860865934",
+      "908544406",
     ];
     nodes = nodes.filter(item => allowed.includes(item.ip)).sort(() => 0.5 - Math.random());
 
