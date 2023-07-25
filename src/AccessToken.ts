@@ -147,14 +147,18 @@ export class AccessToken {
   async getWsUrl(clientIp?: string): Promise<string> {
     let nodes = await getAllNode();
 
-    // tmp filter by this working ip addresses
-    const allowed = [
-      "858160983",
-      "860148438",
-      "860865934",
-      "908544406",
-    ];
-    nodes = nodes.filter(item => allowed.includes(item.ip)).sort(() => 0.5 - Math.random());
+    if (process.env.CONTRACT_ADDRESS === '0xa99885B0Ce9cE7C8B93c15bFc4deeAec419f2393') {
+      // tmp filter by this working ip addresses
+      const allowed = [
+        "858160983",
+        "860148438",
+        "860865934",
+        "908544406",
+      ];
+      nodes = nodes.filter(item => allowed.includes(item.ip));
+    }
+
+    nodes = nodes.sort(() => 0.5 - Math.random());
 
     const address = await this.requestAddressForClient(nodes, clientIp);
 
