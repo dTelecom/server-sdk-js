@@ -8,10 +8,6 @@ import {
 import {
   CreateRoomRequest,
   DeleteRoomRequest,
-  ListParticipantsRequest,
-  ListParticipantsResponse,
-  ListRoomsRequest,
-  ListRoomsResponse,
   MuteRoomTrackRequest,
   MuteRoomTrackResponse,
   RoomEgress,
@@ -97,23 +93,6 @@ export class RoomServiceClient extends ServiceBase {
     return Room.fromJSON(data);
   }
 
-  /**
-   * List active rooms
-   * @param names when undefined or empty, list all rooms.
-   *              otherwise returns rooms with matching names
-   * @returns
-   */
-  async listRooms(names?: string[]): Promise<Room[]> {
-    const data = await this.rpc.request(
-      svc,
-      'ListRooms',
-      ListRoomsRequest.toJSON({ names: names ?? [] }),
-      this.authHeader({ roomList: true }),
-    );
-    const res = ListRoomsResponse.fromJSON(data);
-    return res.rooms ?? [];
-  }
-
   async deleteRoom(room: string): Promise<void> {
     await this.rpc.request(
       svc,
@@ -136,21 +115,6 @@ export class RoomServiceClient extends ServiceBase {
       this.authHeader({ roomAdmin: true, room }),
     );
     return Room.fromJSON(data);
-  }
-
-  /**
-   * List participants in a room
-   * @param room name of the room
-   */
-  async listParticipants(room: string): Promise<ParticipantInfo[]> {
-    const data = await this.rpc.request(
-      svc,
-      'ListParticipants',
-      ListParticipantsRequest.toJSON({ room }),
-      this.authHeader({ roomAdmin: true, room }),
-    );
-    const res = ListParticipantsResponse.fromJSON(data);
-    return res.participants ?? [];
   }
 
   /**

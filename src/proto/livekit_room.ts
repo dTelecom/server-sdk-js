@@ -5,10 +5,8 @@ import {
   DataPacket_Kind,
   dataPacket_KindFromJSON,
   dataPacket_KindToJSON,
-  ParticipantInfo,
   ParticipantPermission,
   ParticipantTracks,
-  Room,
   TrackInfo,
 } from "./livekit_models";
 
@@ -34,30 +32,12 @@ export interface RoomEgress {
   tracks?: AutoTrackEgress;
 }
 
-export interface ListRoomsRequest {
-  /** when set, will only return rooms with name match */
-  names?: string[];
-}
-
-export interface ListRoomsResponse {
-  rooms?: Room[];
-}
-
 export interface DeleteRoomRequest {
   /** name of the room */
   room?: string;
 }
 
 export interface DeleteRoomResponse {
-}
-
-export interface ListParticipantsRequest {
-  /** name of the room */
-  room?: string;
-}
-
-export interface ListParticipantsResponse {
-  participants?: ParticipantInfo[];
 }
 
 export interface RoomParticipantIdentity {
@@ -106,20 +86,12 @@ export interface UpdateSubscriptionsRequest {
   participantTracks?: ParticipantTracks[];
 }
 
-/** empty for now */
-export interface UpdateSubscriptionsResponse {
-}
-
 export interface SendDataRequest {
   room?: string;
   data?: Uint8Array;
   kind?: DataPacket_Kind;
   destinationSids?: string[];
   topic?: string | undefined;
-}
-
-/**  */
-export interface SendDataResponse {
 }
 
 export interface UpdateRoomMetadataRequest {
@@ -287,112 +259,6 @@ export const RoomEgress = {
   },
 };
 
-function createBaseListRoomsRequest(): ListRoomsRequest {
-  return { names: [] };
-}
-
-export const ListRoomsRequest = {
-  encode(message: ListRoomsRequest, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.names !== undefined && message.names.length !== 0) {
-      for (const v of message.names) {
-        writer.uint32(10).string(v!);
-      }
-    }
-    return writer;
-  },
-
-  decode(input: _m0.Reader | Uint8Array, length?: number): ListRoomsRequest {
-    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseListRoomsRequest();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1:
-          message.names!.push(reader.string());
-          break;
-        default:
-          reader.skipType(tag & 7);
-          break;
-      }
-    }
-    return message;
-  },
-
-  fromJSON(object: any): ListRoomsRequest {
-    return { names: Array.isArray(object?.names) ? object.names.map((e: any) => String(e)) : [] };
-  },
-
-  toJSON(message: ListRoomsRequest): unknown {
-    const obj: any = {};
-    if (message.names) {
-      obj.names = message.names.map((e) => e);
-    } else {
-      obj.names = [];
-    }
-    return obj;
-  },
-
-  fromPartial<I extends Exact<DeepPartial<ListRoomsRequest>, I>>(object: I): ListRoomsRequest {
-    const message = createBaseListRoomsRequest();
-    message.names = object.names?.map((e) => e) || [];
-    return message;
-  },
-};
-
-function createBaseListRoomsResponse(): ListRoomsResponse {
-  return { rooms: [] };
-}
-
-export const ListRoomsResponse = {
-  encode(message: ListRoomsResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.rooms !== undefined && message.rooms.length !== 0) {
-      for (const v of message.rooms) {
-        Room.encode(v!, writer.uint32(10).fork()).ldelim();
-      }
-    }
-    return writer;
-  },
-
-  decode(input: _m0.Reader | Uint8Array, length?: number): ListRoomsResponse {
-    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseListRoomsResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1:
-          message.rooms!.push(Room.decode(reader, reader.uint32()));
-          break;
-        default:
-          reader.skipType(tag & 7);
-          break;
-      }
-    }
-    return message;
-  },
-
-  fromJSON(object: any): ListRoomsResponse {
-    return { rooms: Array.isArray(object?.rooms) ? object.rooms.map((e: any) => Room.fromJSON(e)) : [] };
-  },
-
-  toJSON(message: ListRoomsResponse): unknown {
-    const obj: any = {};
-    if (message.rooms) {
-      obj.rooms = message.rooms.map((e) => e ? Room.toJSON(e) : undefined);
-    } else {
-      obj.rooms = [];
-    }
-    return obj;
-  },
-
-  fromPartial<I extends Exact<DeepPartial<ListRoomsResponse>, I>>(object: I): ListRoomsResponse {
-    const message = createBaseListRoomsResponse();
-    message.rooms = object.rooms?.map((e) => Room.fromPartial(e)) || [];
-    return message;
-  },
-};
-
 function createBaseDeleteRoomRequest(): DeleteRoomRequest {
   return { room: "" };
 }
@@ -475,110 +341,6 @@ export const DeleteRoomResponse = {
 
   fromPartial<I extends Exact<DeepPartial<DeleteRoomResponse>, I>>(_: I): DeleteRoomResponse {
     const message = createBaseDeleteRoomResponse();
-    return message;
-  },
-};
-
-function createBaseListParticipantsRequest(): ListParticipantsRequest {
-  return { room: "" };
-}
-
-export const ListParticipantsRequest = {
-  encode(message: ListParticipantsRequest, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.room !== undefined && message.room !== "") {
-      writer.uint32(10).string(message.room);
-    }
-    return writer;
-  },
-
-  decode(input: _m0.Reader | Uint8Array, length?: number): ListParticipantsRequest {
-    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseListParticipantsRequest();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1:
-          message.room = reader.string();
-          break;
-        default:
-          reader.skipType(tag & 7);
-          break;
-      }
-    }
-    return message;
-  },
-
-  fromJSON(object: any): ListParticipantsRequest {
-    return { room: isSet(object.room) ? String(object.room) : "" };
-  },
-
-  toJSON(message: ListParticipantsRequest): unknown {
-    const obj: any = {};
-    message.room !== undefined && (obj.room = message.room);
-    return obj;
-  },
-
-  fromPartial<I extends Exact<DeepPartial<ListParticipantsRequest>, I>>(object: I): ListParticipantsRequest {
-    const message = createBaseListParticipantsRequest();
-    message.room = object.room ?? "";
-    return message;
-  },
-};
-
-function createBaseListParticipantsResponse(): ListParticipantsResponse {
-  return { participants: [] };
-}
-
-export const ListParticipantsResponse = {
-  encode(message: ListParticipantsResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.participants !== undefined && message.participants.length !== 0) {
-      for (const v of message.participants) {
-        ParticipantInfo.encode(v!, writer.uint32(10).fork()).ldelim();
-      }
-    }
-    return writer;
-  },
-
-  decode(input: _m0.Reader | Uint8Array, length?: number): ListParticipantsResponse {
-    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseListParticipantsResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1:
-          message.participants!.push(ParticipantInfo.decode(reader, reader.uint32()));
-          break;
-        default:
-          reader.skipType(tag & 7);
-          break;
-      }
-    }
-    return message;
-  },
-
-  fromJSON(object: any): ListParticipantsResponse {
-    return {
-      participants: Array.isArray(object?.participants)
-        ? object.participants.map((e: any) => ParticipantInfo.fromJSON(e))
-        : [],
-    };
-  },
-
-  toJSON(message: ListParticipantsResponse): unknown {
-    const obj: any = {};
-    if (message.participants) {
-      obj.participants = message.participants.map((e) => e ? ParticipantInfo.toJSON(e) : undefined);
-    } else {
-      obj.participants = [];
-    }
-    return obj;
-  },
-
-  fromPartial<I extends Exact<DeepPartial<ListParticipantsResponse>, I>>(object: I): ListParticipantsResponse {
-    const message = createBaseListParticipantsResponse();
-    message.participants = object.participants?.map((e) => ParticipantInfo.fromPartial(e)) || [];
     return message;
   },
 };
@@ -992,45 +754,6 @@ export const UpdateSubscriptionsRequest = {
   },
 };
 
-function createBaseUpdateSubscriptionsResponse(): UpdateSubscriptionsResponse {
-  return {};
-}
-
-export const UpdateSubscriptionsResponse = {
-  encode(_: UpdateSubscriptionsResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    return writer;
-  },
-
-  decode(input: _m0.Reader | Uint8Array, length?: number): UpdateSubscriptionsResponse {
-    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseUpdateSubscriptionsResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        default:
-          reader.skipType(tag & 7);
-          break;
-      }
-    }
-    return message;
-  },
-
-  fromJSON(_: any): UpdateSubscriptionsResponse {
-    return {};
-  },
-
-  toJSON(_: UpdateSubscriptionsResponse): unknown {
-    const obj: any = {};
-    return obj;
-  },
-
-  fromPartial<I extends Exact<DeepPartial<UpdateSubscriptionsResponse>, I>>(_: I): UpdateSubscriptionsResponse {
-    const message = createBaseUpdateSubscriptionsResponse();
-    return message;
-  },
-};
-
 function createBaseSendDataRequest(): SendDataRequest {
   return { room: "", data: new Uint8Array(), kind: 0, destinationSids: [], topic: undefined };
 }
@@ -1123,45 +846,6 @@ export const SendDataRequest = {
   },
 };
 
-function createBaseSendDataResponse(): SendDataResponse {
-  return {};
-}
-
-export const SendDataResponse = {
-  encode(_: SendDataResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    return writer;
-  },
-
-  decode(input: _m0.Reader | Uint8Array, length?: number): SendDataResponse {
-    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseSendDataResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        default:
-          reader.skipType(tag & 7);
-          break;
-      }
-    }
-    return message;
-  },
-
-  fromJSON(_: any): SendDataResponse {
-    return {};
-  },
-
-  toJSON(_: SendDataResponse): unknown {
-    const obj: any = {};
-    return obj;
-  },
-
-  fromPartial<I extends Exact<DeepPartial<SendDataResponse>, I>>(_: I): SendDataResponse {
-    const message = createBaseSendDataResponse();
-    return message;
-  },
-};
-
 function createBaseUpdateRoomMetadataRequest(): UpdateRoomMetadataRequest {
   return { room: "", metadata: "" };
 }
@@ -1226,33 +910,14 @@ export const UpdateRoomMetadataRequest = {
  */
 export interface RoomService {
   /**
-   * Creates a room with settings. Requires `roomCreate` permission.
-   * This method is optional; rooms are automatically created when clients connect to them for the first time.
-   */
-  CreateRoom(request: CreateRoomRequest): Promise<Room>;
-  /** List rooms that are active on the server. Requires `roomList` permission. */
-  ListRooms(request: ListRoomsRequest): Promise<ListRoomsResponse>;
-  /**
    * Deletes an existing room by name or id. Requires `roomCreate` permission.
    * DeleteRoom will disconnect all participants that are currently in the room.
    */
   DeleteRoom(request: DeleteRoomRequest): Promise<DeleteRoomResponse>;
-  /** Lists participants in a room, Requires `roomAdmin` */
-  ListParticipants(request: ListParticipantsRequest): Promise<ListParticipantsResponse>;
-  /** Get information on a specific participant, Requires `roomAdmin` */
-  GetParticipant(request: RoomParticipantIdentity): Promise<ParticipantInfo>;
   /** Removes a participant from room. Requires `roomAdmin` */
   RemoveParticipant(request: RoomParticipantIdentity): Promise<RemoveParticipantResponse>;
   /** Mute/unmute a participant's track, Requires `roomAdmin` */
   MutePublishedTrack(request: MuteRoomTrackRequest): Promise<MuteRoomTrackResponse>;
-  /** Update participant metadata, will cause updates to be broadcasted to everyone in the room. Requires `roomAdmin` */
-  UpdateParticipant(request: UpdateParticipantRequest): Promise<ParticipantInfo>;
-  /** Subscribes or unsubscribe a participant from tracks. Requires `roomAdmin` */
-  UpdateSubscriptions(request: UpdateSubscriptionsRequest): Promise<UpdateSubscriptionsResponse>;
-  /** Send data over data channel to participants in a room, Requires `roomAdmin` */
-  SendData(request: SendDataRequest): Promise<SendDataResponse>;
-  /** Update room metadata, will cause updates to be broadcasted to everyone in the room, Requires `roomAdmin` */
-  UpdateRoomMetadata(request: UpdateRoomMetadataRequest): Promise<Room>;
 }
 
 declare var self: any | undefined;
