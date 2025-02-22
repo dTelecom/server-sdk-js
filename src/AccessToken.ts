@@ -1,5 +1,7 @@
-import * as jwt from 'jsonwebtoken';
-import KeyEncoder from "key-encoder";
+import { Keypair } from '@solana/web3.js';
+import { createSigner, createVerifier } from 'fast-jwt';
+import * as bs58 from 'bs58';
+import * as crypto from 'crypto';
 import axios from "axios";
 import {ClaimGrants, VideoGrant} from './grants';
 import {getAllNode, IFormattedNodeItem} from "./contract/contract";
@@ -38,15 +40,11 @@ export interface AccessTokenOptions {
 
 export class AccessToken {
   private apiKey: string;
-
   private apiSecret: string;
-
   private grants: ClaimGrants;
-
-  private keyEncoder: KeyEncoder;
-
+  private keypair: Keypair;
+  private signJwt: (payload: any) => string;
   identity?: string;
-
   ttl?: number | string;
 
   /**
@@ -75,7 +73,34 @@ export class AccessToken {
     this.apiKey = apiKey;
     this.apiSecret = apiSecret;
     this.grants = {};
-    this.keyEncoder = new KeyEncoder('secp256k1');
+    
+    // Create Solana keypair from private key
+    const privateKeyBytes = bs58.decode(apiSecret);
+    this.keypair = Keypair.fromSecretKey(privateKeyBytes);
+
+    // Create Ed25519 key pair using Node's crypto
+    const privateKeyObject = crypto.createPrivateKey({
+      key: Buffer.concat([
+        Buffer.from([0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x04, 0x22, 0x04, 0x20]),
+        Buffer.from(this.keypair.secretKey.slice(0, 32))
+      ]),
+      format: 'der',
+      type: 'pkcs8'
+    });
+
+    // Export private key in PEM format
+    const privateKeyPem = privateKeyObject.export({
+      format: 'pem',
+      type: 'pkcs8'
+    });
+
+    // Create signer function
+    this.signJwt = createSigner({
+      algorithm: 'EdDSA',
+      key: privateKeyPem as string,
+      iss: this.keypair.publicKey.toBase58()
+    });
+
     this.identity = options?.identity;
     this.ttl = options?.ttl || defaultTTL;
     if (options?.metadata) {
@@ -121,24 +146,20 @@ export class AccessToken {
    * @returns JWT encoded token
    */
   toJwt(): string {
-    // TODO: check for video grant validity
-
-    const opts: jwt.SignOptions = {
-      issuer: this.apiKey,
-      expiresIn: this.ttl,
-      notBefore: 0,
-      algorithm: 'ES256',
-    };
-    if (this.identity) {
-      opts.subject = this.identity;
-      opts.jwtid = this.identity;
-    } else if (this.grants.video?.roomJoin) {
-      throw Error('identity is required for join but not set');
+    if (this.identity && this.grants.video?.roomJoin && !this.grants.video?.room) {
+      throw Error('room is required for join but not set');
     }
 
-    const pemPrivateKey = this.keyEncoder.encodePrivate(this.apiSecret, 'raw', 'pem');
+    const now = Math.floor(Date.now() / 1000);
+    const payload = {
+      ...this.grants,
+      iss: this.keypair.publicKey.toBase58(),
+      sub: this.identity || 'unknown',
+      nbf: now,
+      exp: now + (typeof this.ttl === 'number' ? this.ttl : defaultTTL)
+    };
 
-    return jwt.sign(this.grants, pemPrivateKey, opts);
+    return this.signJwt(payload);
   }
 
   /**
@@ -178,22 +199,38 @@ export class AccessToken {
 }
 
 export class TokenVerifier {
-  private apiKey: string;
+  private verifyJwt: (token: string) => any;
 
-  private apiSecret: string;
+  constructor(apiKey: string) {
+    // Create public key object from apiKey
+    const publicKeyBytes = bs58.decode(apiKey);
+    
+    // Create Ed25519 public key using Node's crypto
+    const publicKeyObject = crypto.createPublicKey({
+      key: Buffer.concat([
+        Buffer.from([0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00]),
+        Buffer.from(publicKeyBytes)
+      ]),
+      format: 'der',
+      type: 'spki'
+    });
 
-  private keyEncoder: KeyEncoder;
+    // Export public key in PEM format
+    const publicKeyPem = publicKeyObject.export({
+      format: 'pem',
+      type: 'spki'
+    });
 
-  constructor(apiKey: string, apiSecret: string) {
-    this.apiKey = apiKey;
-    this.apiSecret = apiSecret;
-    this.keyEncoder = new KeyEncoder('secp256k1');
+    // Create verifier function
+    this.verifyJwt = createVerifier({
+      algorithms: ['EdDSA'],
+      key: publicKeyPem as string,
+      allowedIss: apiKey
+    });
   }
 
   verify(token: string): ClaimGrants {
-    const pemPrivateKey = this.keyEncoder.encodePublic(this.apiSecret, 'raw', 'pem');
-
-    const decoded = jwt.verify(token, pemPrivateKey, {issuer: this.apiKey, algorithms: ['ES256']});
+    const decoded = this.verifyJwt(token);
 
     if (!decoded) {
       throw Error('invalid token');

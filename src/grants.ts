@@ -43,9 +43,16 @@ export interface VideoGrant {
 
 /** @internal */
 export interface ClaimGrants {
-  name?: string;
   video?: VideoGrant;
   metadata?: string;
+  name?: string;
   sha256?: string;
   webHookURL?: string;
+  // Standard JWT claims
+  iss?: string;  // Issuer
+  sub?: string;  // Subject
+  exp?: number;  // Expiration time
+  nbf?: number;  // Not before time
+  iat?: number;  // Issued at
+  jti?: string;  // JWT ID
 }
