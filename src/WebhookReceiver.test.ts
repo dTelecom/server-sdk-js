@@ -1,15 +1,3 @@
-// Mock @solana/web3.js
-jest.mock('@solana/web3.js', () => ({
-  Keypair: {
-    fromSecretKey: (secretKey: Uint8Array) => ({
-      secretKey,
-      publicKey: {
-        toBase58: () => 'H8crAQw9n4vNoxpptoRJAX6Mc7dkNkczRkCk39SNp3yZ'
-      }
-    })
-  }
-}));
-
 // Mock fast-jwt
 jest.mock('fast-jwt', () => {
   let currentMockToken = {
@@ -40,7 +28,7 @@ import { AccessToken } from './AccessToken';
 import { WebhookEvent } from './proto/livekit_webhook';
 import { WebhookReceiver } from './WebhookReceiver';
 
-// Use the example Solana keypair from the reference implementation
+// Use the example keypair from the reference implementation
 const testApiKey = 'H8crAQw9n4vNoxpptoRJAX6Mc7dkNkczRkCk39SNp3yZ';
 const testSecret = '3yRpASkGYZ9AUihQF8ipVd7rse4KZLocZdajzFLnMTobZk9fqXtjyS6oi1tt8TfzNmJbok1hM4MuQdQ5D1UYHpVV';
 

@@ -1,4 +1,4 @@
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import camelcaseKeys from 'camelcase-keys';
 
 // twirp RPC adapter for client implementation
@@ -28,18 +28,31 @@ export class TwirpRpc {
     this.prefix = prefix || defaultPrefix;
     this.instance = axios.create({
       baseURL: host,
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
   }
 
-  request(service: string, method: string, data: any, headers?: any): Promise<any> {
-    return new Promise<any>((resolve, reject) => {
-      const path = `${this.prefix}/${this.pkg}.${service}/${method}`;
-      this.instance
-        .post(path, data, { headers })
-        .then((res) => {
-          resolve(camelcaseKeys(res.data, { deep: true }));
-        })
-        .catch(reject);
-    });
+  async request<T>(
+    service: string,
+    method: string,
+    data: any,
+    options: { headers?: Record<string, string> } = {},
+  ): Promise<T> {
+    const url = `${this.prefix}/${this.pkg}.${service}/${method}`;
+
+    return this.instance
+      .post(url, data, {
+        headers: {
+          ...options.headers,
+        },
+      })
+      .then((res: AxiosResponse) => {
+        if (res.data === null || res.data === undefined) {
+          return {};
+        }
+        return camelcaseKeys(res.data, { deep: true });
+      });
   }
 }

@@ -9,5 +9,10 @@ module.exports = {
       isolatedModules: true
     }
   },
-  setupFiles: ['<rootDir>/jest.setup.js']
+  setupFiles: ['<rootDir>/jest.setup.js'],
+  testMatch: ['<rootDir>/src/**/*.test.ts'],
+  testPathIgnorePatterns: ['/node_modules/', '/dist/'],
+  transform: {
+    '^.+\\.ts$': 'ts-jest'
+  }
 };

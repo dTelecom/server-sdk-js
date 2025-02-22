@@ -7,8 +7,32 @@
   "repository": "git@github.com:dTelecom/server-sdk-js.git",
   "author": "",
   "license": "Apache-2.0",
+  "browser": {
+    "crypto": false,
+    "node:crypto": false,
+    "./dist/AccessToken.js": "./dist/AccessToken.browser.js"
+  },
+  "exports": {
+    ".": {
+      "node": "./dist/index.js",
+      "browser": "./dist/index.browser.js",
+      "default": "./dist/index.js"
+    },
+    "./contract/*": {
+      "types": "./dist/contract/*.d.ts",
+      "node": "./dist/contract/*.js",
+      "browser": "./dist/contract/*.js",
+      "default": "./dist/contract/*.js"
+    },
+    "./proto/*": {
+      "types": "./dist/proto/*.d.ts",
+      "node": "./dist/proto/*.js",
+      "browser": "./dist/proto/*.js",
+      "default": "./dist/proto/*.js"
+    }
+  },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && tsc -p tsconfig.browser.json",
     "build:watch": "tsc --watch",
     "build-docs": "typedoc",
     "proto": "./generate-proto.sh",
@@ -19,7 +43,6 @@
     "test": "jest"
   },
   "dependencies": {
-    "@solana/web3.js": "1.77.3",
     "axios": "^0.21.0",
     "bs58": "^5.0.0",
     "camelcase-keys": "^7.0.0",

@@ -1,10 +1,44 @@
-import { Keypair } from '@solana/web3.js';
 import { createSigner, createVerifier } from 'fast-jwt';
 import * as bs58 from 'bs58';
-import * as crypto from 'crypto';
 import axios from "axios";
 import {ClaimGrants, VideoGrant} from './grants';
 import {getAllNode, IFormattedNodeItem} from "./contract/contract";
+
+// Import crypto in a way that works in both Node.js and browser environments
+let crypto: any;
+if (typeof window === 'undefined') {
+  // Node.js environment
+  crypto = require('crypto');
+} else {
+  // Browser environment - use WebCrypto API
+  crypto = {
+    createPrivateKey: () => {
+      throw new Error('Private key operations are not supported in the browser');
+    },
+    createPublicKey: () => {
+      throw new Error('Public key operations are not supported in the browser');
+    },
+    createHash: (algorithm: string) => {
+      const hash = {
+        update: (data: string) => {
+          if (typeof data !== 'string') {
+            data = JSON.stringify(data);
+          }
+          const encoder = new TextEncoder();
+          const encoded = encoder.encode(data);
+          return hash;
+        },
+        digest: (encoding: string) => {
+          if (encoding !== 'base64') {
+            throw new Error('Only base64 encoding is supported in the browser');
+          }
+          throw new Error('Hash operations should be performed on the server');
+        }
+      };
+      return hash;
+    }
+  };
+}
 
 // 6 hours
 const defaultTTL = 6 * 60 * 60;
@@ -42,7 +76,6 @@ export class AccessToken {
   private apiKey: string;
   private apiSecret: string;
   private grants: ClaimGrants;
-  private keypair: Keypair;
   private signJwt: (payload: any) => string;
   identity?: string;
   ttl?: number | string;
@@ -73,16 +106,17 @@ export class AccessToken {
     this.apiKey = apiKey;
     this.apiSecret = apiSecret;
     this.grants = {};
-    
-    // Create Solana keypair from private key
-    const privateKeyBytes = bs58.decode(apiSecret);
-    this.keypair = Keypair.fromSecretKey(privateKeyBytes);
+
+    if (typeof window !== 'undefined') {
+      throw new Error('AccessToken should only be used on the server side');
+    }
 
     // Create Ed25519 key pair using Node's crypto
+    const privateKeyBytes = bs58.decode(apiSecret);
     const privateKeyObject = crypto.createPrivateKey({
       key: Buffer.concat([
         Buffer.from([0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x04, 0x22, 0x04, 0x20]),
-        Buffer.from(this.keypair.secretKey.slice(0, 32))
+        Buffer.from(privateKeyBytes.slice(0, 32))
       ]),
       format: 'der',
       type: 'pkcs8'
@@ -98,7 +132,7 @@ export class AccessToken {
     this.signJwt = createSigner({
       algorithm: 'EdDSA',
       key: privateKeyPem as string,
-      iss: this.keypair.publicKey.toBase58()
+      iss: apiKey
     });
 
     this.identity = options?.identity;
@@ -153,7 +187,7 @@ export class AccessToken {
     const now = Math.floor(Date.now() / 1000);
     const payload = {
       ...this.grants,
-      iss: this.keypair.publicKey.toBase58(),
+      iss: this.apiKey,
       sub: this.identity || 'unknown',
       nbf: now,
       exp: now + (typeof this.ttl === 'number' ? this.ttl : defaultTTL)
@@ -202,10 +236,12 @@ export class TokenVerifier {
   private verifyJwt: (token: string) => any;
 
   constructor(apiKey: string) {
-    // Create public key object from apiKey
-    const publicKeyBytes = bs58.decode(apiKey);
-    
+    if (typeof window !== 'undefined') {
+      throw new Error('TokenVerifier should only be used on the server side');
+    }
+
     // Create Ed25519 public key using Node's crypto
+    const publicKeyBytes = bs58.decode(apiKey);
     const publicKeyObject = crypto.createPublicKey({
       key: Buffer.concat([
         Buffer.from([0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00]),

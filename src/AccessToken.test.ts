@@ -1,15 +1,3 @@
-// Mock @solana/web3.js
-jest.mock('@solana/web3.js', () => ({
-  Keypair: {
-    fromSecretKey: (secretKey: Uint8Array) => ({
-      secretKey,
-      publicKey: {
-        toBase58: () => 'H8crAQw9n4vNoxpptoRJAX6Mc7dkNkczRkCk39SNp3yZ'
-      }
-    })
-  }
-}));
-
 // Mock fast-jwt
 jest.mock('fast-jwt', () => {
   let currentMockToken = {
