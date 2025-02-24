@@ -1,39 +1,17 @@
-export * from './AccessToken';
-export * from './EgressClient';
-export * from './IngressClient';
-export * from './RoomServiceClient';
-export * from './WebhookReceiver';
-export * from './grants';
+// Import using require
+import { AccessToken } from './AccessToken';
+import { EgressClient } from './EgressClient';
+import { IngressClient } from './IngressClient';
+import { RoomServiceClient } from './RoomServiceClient';
+import { WebhookReceiver } from './WebhookReceiver';
+import * as grants from './grants';
+
+// Export everything
 export {
-  DirectFileOutput,
-  EgressInfo,
-  EncodedFileOutput,
-  EncodedFileType,
-  EncodingOptions,
-  EncodingOptionsPreset,
-  SegmentedFileOutput,
-  SegmentedFileProtocol,
-  StreamOutput,
-  StreamProtocol,
-} from './proto/livekit_egress';
-export {
-  IngressAudioEncodingOptions,
-  IngressAudioEncodingPreset,
-  IngressAudioOptions,
-  IngressInfo,
-  IngressInput,
-  IngressState,
-  IngressVideoEncodingOptions,
-  IngressVideoEncodingPreset,
-  IngressVideoOptions,
-} from './proto/livekit_ingress';
-export {
-  DataPacket_Kind,
-  ParticipantInfo,
-  ParticipantInfo_State,
-  ParticipantPermission,
-  Room,
-  TrackInfo,
-  TrackSource,
-  TrackType,
-} from './proto/livekit_models';
+  AccessToken,
+  EgressClient,
+  IngressClient,
+  RoomServiceClient,
+  WebhookReceiver,
+  grants,
+};

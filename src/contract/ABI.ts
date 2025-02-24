@@ -1,88 +1,179 @@
-export interface AbiItem {
-  anonymous?: boolean;
-  constant?: boolean;
-  inputs?: Array<{
-    name: string;
-    type: string;
-    internalType?: string;
-    indexed?: boolean;
-    components?: Array<{
-      name: string;
-      type: string;
-      internalType?: string;
-    }>;
-  }>;
-  name?: string;
-  outputs?: Array<{
-    name: string;
-    type: string;
-    internalType?: string;
-    components?: Array<{
-      name: string;
-      type: string;
-      internalType?: string;
-    }>;
-  }>;
-  payable?: boolean;
-  stateMutability?: string;
-  type: string;
-}
+import {AbiItem} from "web3-utils"
 
-export const ABI: AbiItem[] = [
+const ABI: AbiItem[] = [
   {
-    "inputs": [
+    inputs: [
       {
-        "internalType": "string",
-        "name": "name",
-        "type": "string"
+        internalType: "address",
+        name: "",
+        type: "address",
+      },
+    ],
+    name: "clientByAddress",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "limit",
+        type: "uint256",
       },
       {
-        "internalType": "string",
-        "name": "ip",
-        "type": "string"
-      }
+        internalType: "uint256",
+        name: "until",
+        type: "uint256",
+      },
+      {
+        internalType: "bool",
+        name: "active",
+        type: "bool",
+      },
+      {
+        internalType: "string",
+        name: "key",
+        type: "string",
+      },
     ],
-    "name": "addNode",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
+    stateMutability: "view",
+    type: "function",
+    constant: true,
   },
   {
-    "inputs": [],
-    "name": "getAllNode",
-    "outputs": [
+    inputs: [
       {
-        "components": [
+        internalType: "address",
+        name: "",
+        type: "address",
+      },
+    ],
+    name: "nodeByAddress",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "ip",
+        type: "uint256",
+      },
+      {
+        internalType: "bool",
+        name: "active",
+        type: "bool",
+      },
+      {
+        internalType: "string",
+        name: "key",
+        type: "string",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+    constant: true,
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "ip",
+        type: "uint256",
+      },
+      {
+        internalType: "address",
+        name: "addr",
+        type: "address",
+      },
+      {
+        internalType: "string",
+        name: "key",
+        type: "string",
+      },
+    ],
+    name: "addNode",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "addr",
+        type: "address",
+      },
+    ],
+    name: "removeNodeByAddress",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "getAllNode",
+    outputs: [
+      {
+        components: [
           {
-            "internalType": "string",
-            "name": "name",
-            "type": "string"
+            internalType: "uint256",
+            name: "ip",
+            type: "uint256",
           },
           {
-            "internalType": "string",
-            "name": "ip",
-            "type": "string"
-          }
+            internalType: "bool",
+            name: "active",
+            type: "bool",
+          },
+          {
+            internalType: "string",
+            name: "key",
+            type: "string",
+          },
         ],
-        "internalType": "struct NodeContract.Node[]",
-        "name": "",
-        "type": "tuple[]"
-      }
+        internalType: "struct Dtelecom.Node[]",
+        name: "",
+        type: "tuple[]",
+      },
     ],
-    "stateMutability": "view",
-    "type": "function"
+    stateMutability: "view",
+    type: "function",
+    constant: true,
   },
   {
-    "inputs": [
+    inputs: [
       {
-        "internalType": "string",
-        "name": "name",
-        "type": "string"
-      }
+        internalType: "address",
+        name: "addr",
+        type: "address",
+      },
+      {
+        internalType: "uint256",
+        name: "limit",
+        type: "uint256",
+      },
+      {
+        internalType: "uint256",
+        name: "until",
+        type: "uint256",
+      },
+      {
+        internalType: "string",
+        name: "key",
+        type: "string",
+      },
     ],
-    "name": "removeNode",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  }
-];
+    name: "addClient",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "addr",
+        type: "address",
+      },
+    ],
+    name: "removeClientByAddress",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+]
+
+export default ABI
