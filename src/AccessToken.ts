@@ -2,7 +2,7 @@ import { createSigner, createVerifier } from 'fast-jwt';
 import * as bs58 from 'bs58';
 import axios from 'axios';
 import { ClaimGrants, VideoGrant } from './grants';
-import { getAllNode, IFormattedNodeItem } from './contract/contract';
+import { getAllNode, IAllNodeResponseItem } from './contract/contract';
 import * as crypto from 'crypto';
 
 // Import crypto in a way that works in both Node.js and browser environments
@@ -172,15 +172,15 @@ export class AccessToken {
     return address;
   }
 
-  async requestAddressForClient(nodes: IFormattedNodeItem[], clientIp?: string) {
-    let address = `wss://${nodes[0].ip}.dtel.network`;
+  async requestAddressForClient(nodes: IAllNodeResponseItem[], clientIp?: string) {
+    let address = `wss://${nodes[0].domain}`;
 
     if (!clientIp) {
       return address;
     }
 
     for (const node of nodes) {
-      const response = await axios.get<{ domain: string }>(`https://${node.ip}.dtel.network/relevant`, {
+      const response = await axios.get<{ domain: string }>(`https://${node.domain}/relevant`, {
         data: {ip: clientIp},
         timeout: 3000
       }).catch(() => null);

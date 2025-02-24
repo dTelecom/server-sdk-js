@@ -46,6 +46,7 @@
     "test": "jest --config jest.config.cjs"
   },
   "dependencies": {
+    "@solana/web3.js": "^1.91.0",
     "axios": "^0.21.0",
     "bs58": "^5.0.0",
     "camelcase-keys": "^7.0.0",
@@ -53,9 +54,7 @@
     "ip-to-int": "^0.3.1",
     "jsonwebtoken": "^8.5.1",
     "protobufjs": "^6.10.2",
-    "rpc-websockets": "^7.5.1",
-    "web3": "^1.10.0",
-    "web3-utils": "^1.10.0"
+    "rpc-websockets": "^7.5.1"
   },
   "devDependencies": {
     "@types/bs58": "^4.0.4",
