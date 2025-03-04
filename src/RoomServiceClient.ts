@@ -4,7 +4,7 @@ import {
   ParticipantPermission,
   Room,
   TrackInfo,
-} from './proto/livekit_models';
+} from './proto/livekit_models.js';
 import {
   CreateRoomRequest,
   DeleteRoomRequest,
@@ -16,9 +16,10 @@ import {
   UpdateParticipantRequest,
   UpdateRoomMetadataRequest,
   UpdateSubscriptionsRequest,
-} from './proto/livekit_room';
-import ServiceBase from './ServiceBase';
-import { livekitPackage, Rpc, TwirpRpc } from './TwirpRPC';
+} from './proto/livekit_room.js';
+import ServiceBase from './ServiceBase.js';
+import { livekitPackage, TwirpRpc } from './TwirpRPC.js';
+import type { Rpc } from './TwirpRPC.js';
 
 /**
  * Options for when creating a room

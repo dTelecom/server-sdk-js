@@ -1,7 +1,7 @@
 import crypto from 'crypto';
-import { TokenVerifier } from './AccessToken';
-import { WebhookEvent } from './proto/livekit_webhook';
-import { Room } from './proto/livekit_models';
+import { TokenVerifier } from './AccessToken.js';
+import { WebhookEvent } from './proto/livekit_webhook.js';
+import { Room } from './proto/livekit_models.js';
 
 export const authorizeHeader = 'Authorize';
 

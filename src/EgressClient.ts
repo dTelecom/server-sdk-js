@@ -15,9 +15,10 @@ import {
   UpdateLayoutRequest,
   UpdateStreamRequest,
   WebEgressRequest,
-} from './proto/livekit_egress';
-import ServiceBase from './ServiceBase';
-import { livekitPackage, Rpc, TwirpRpc } from './TwirpRPC';
+} from './proto/livekit_egress.js';
+import ServiceBase from './ServiceBase.js';
+import { livekitPackage, TwirpRpc } from './TwirpRPC.js';
+import type { Rpc } from './TwirpRPC.js';
 
 const svc = 'Egress';
 

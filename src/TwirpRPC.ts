@@ -1,4 +1,5 @@
-import axios, { AxiosInstance, AxiosResponse } from 'axios';
+import axios from 'axios';
+import type { AxiosInstance, AxiosResponse } from 'axios';
 import camelcaseKeys from 'camelcase-keys';
 
 // twirp RPC adapter for client implementation

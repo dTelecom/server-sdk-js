@@ -2,17 +2,15 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   moduleNameMapper: {
-    '^node:(.*)$': '$1'
+    '^node:(.*)$': '$1',
+    '^(\\.{1,2}/.*)\\.js$': '$1'
   },
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {
-      tsconfig: 'tsconfig.json',
+      tsconfig: 'tsconfig.test.json',
       isolatedModules: true,
       diagnostics: {
         ignoreCodes: [151001]
-      },
-      tsconfig: {
-        allowJs: true
       }
     }]
   },

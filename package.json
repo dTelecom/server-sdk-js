@@ -1,41 +1,41 @@
 {
   "name": "@dtelecom/server-sdk-js",
-  "version": "2.0.1",
+  "version": "2.0.4",
   "description": "Server-side SDK",
-  "type": "module",
-  "main": "./dist/cjs/index.cjs",
+  "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "repository": "git@github.com:dTelecom/server-sdk-js.git",
   "author": "",
   "license": "Apache-2.0",
-  "browser": {
-    "crypto": false,
-    "node:crypto": false,
-    "./dist/AccessToken.js": "./dist/AccessToken.browser.js"
-  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "require": "./dist/cjs/index.cjs",
-      "default": "./dist/index.js"
+      "require": "./dist/index.js"
+    },
+    "./contract": {
+      "types": "./dist/contract/index.d.ts",
+      "import": "./dist/contract/index.js",
+      "require": "./dist/contract/index.js"
     },
     "./contract/*": {
       "types": "./dist/contract/*.d.ts",
       "import": "./dist/contract/*.js",
-      "require": "./dist/cjs/*.cjs",
-      "default": "./dist/contract/*.js"
+      "require": "./dist/contract/*.js"
     },
     "./proto/*": {
       "types": "./dist/proto/*.d.ts",
       "import": "./dist/proto/*.js",
-      "require": "./dist/cjs/*.cjs",
-      "default": "./dist/proto/*.js"
+      "require": "./dist/proto/*.js"
     }
   },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
-    "build": "tsc && tsc -p tsconfig.cjs.json && node rename-cjs.cjs && tsc -p tsconfig.browser.json",
+    "build": "tsc -p tsconfig.main.json",
     "build:watch": "tsc --watch",
     "build-docs": "typedoc",
     "proto": "./generate-proto.sh",
@@ -73,8 +73,6 @@
     "ts-node": "^9.1.1",
     "ts-proto": "^1.131.0",
     "typedoc": "^0.22.13",
-    "typescript": "5.7.x",
-    "webpack": "^5.9.0",
-    "webpack-cli": "^4.2.0"
+    "typescript": "5.7.x"
   }
 }

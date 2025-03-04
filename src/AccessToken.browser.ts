@@ -1,4 +1,4 @@
-import { ClaimGrants, VideoGrant } from './grants';
+import type { ClaimGrants, VideoGrant } from './grants.js';
 
 export interface AccessTokenOptions {
   ttl?: number | string;

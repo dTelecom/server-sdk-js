@@ -1,12 +1,15 @@
-import { createSigner, createVerifier } from 'fast-jwt';
-import * as bs58 from 'bs58';
-import axios from 'axios';
-import { ClaimGrants, VideoGrant } from './grants';
-import { getAllNode, IAllNodeResponseItem } from './contract/contract';
-import * as crypto from 'crypto';
+const { createSigner, createVerifier } = require('fast-jwt');
+const bs58 = require('bs58');
+const axios = require('axios');
+const { getAllNode } = require('./contract/contract');
+const crypto = require('crypto');
 
-// Import crypto in a way that works in both Node.js and browser environments
-const isBrowser = typeof window !== 'undefined';
+// Import types
+import type { ClaimGrants, VideoGrant } from './grants';
+import type { IAllNodeResponseItem } from './contract/contract';
+
+// Check if we're in a Node.js environment
+const isNode = typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
 
 // 6 hours
 const defaultTTL = 6 * 60 * 60;
@@ -57,8 +60,7 @@ export class AccessToken {
     }
     if (!apiKey || !apiSecret) {
       throw Error('api-key and api-secret must be set');
-    } else if (typeof document !== 'undefined') {
-      // check against document rather than window because deno provides window
+    } else if (!isNode) {
       console.error(
         'You should not include your API secret in your web client bundle.\n\n' +
         'Your web client should request a token from your backend server which should then use ' +
@@ -70,7 +72,7 @@ export class AccessToken {
     this.apiSecret = apiSecret;
     this.grants = {};
 
-    if (isBrowser) {
+    if (!isNode) {
       throw new Error('AccessToken should only be used on the server side');
     }
 
@@ -180,12 +182,12 @@ export class AccessToken {
     }
 
     for (const node of nodes) {
-      const response = await axios.get<{ domain: string }>(`https://${node.domain}/relevant`, {
+      const response = await axios.get(`https://${node.domain}/relevant`, {
         data: {ip: clientIp},
         timeout: 3000
       }).catch(() => null);
 
-      if (response?.data.domain) {
+      if (response?.data?.domain) {
         address = `wss://${response.data.domain}`;
         break;
       }
@@ -199,7 +201,7 @@ export class TokenVerifier {
   private verifyJwt: (token: string) => any;
 
   constructor(apiKey: string) {
-    if (isBrowser) {
+    if (!isNode) {
       throw new Error('TokenVerifier should only be used on the server side');
     }
 
@@ -238,3 +240,9 @@ export class TokenVerifier {
     return decoded as ClaimGrants;
   }
 }
+
+// CommonJS exports for runtime
+module.exports = {
+  AccessToken,
+  TokenVerifier
+};

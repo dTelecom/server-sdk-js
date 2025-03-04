@@ -1,4 +1,5 @@
-import { Connection, PublicKey, AccountInfo } from '@solana/web3.js';
+import { Connection, PublicKey } from '@solana/web3.js';
+import type { AccountInfo } from '@solana/web3.js';
 import bs58 from 'bs58';
 
 const DISCRIMINATOR_LENGTH = 8;

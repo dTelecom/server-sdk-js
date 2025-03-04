@@ -1,13 +1,13 @@
 // Import using require
-import { AccessToken } from './AccessToken';
-import { EgressClient } from './EgressClient';
-import { IngressClient } from './IngressClient';
-import { RoomServiceClient } from './RoomServiceClient';
-import { WebhookReceiver } from './WebhookReceiver';
-import * as grants from './grants';
+const { AccessToken } = require('./AccessToken');
+const { EgressClient } = require('./EgressClient');
+const { IngressClient } = require('./IngressClient');
+const { RoomServiceClient } = require('./RoomServiceClient');
+const { WebhookReceiver } = require('./WebhookReceiver');
+const grants = require('./grants');
 
 // Export everything
-export {
+module.exports = {
   AccessToken,
   EgressClient,
   IngressClient,
