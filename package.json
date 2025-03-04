@@ -1,6 +1,6 @@
 {
   "name": "@dtelecom/server-sdk-js",
-  "version": "1.0.14",
+  "version": "2.0.1",
   "description": "Server-side SDK",
   "type": "module",
   "main": "./dist/cjs/index.cjs",
