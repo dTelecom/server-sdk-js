@@ -1,5 +1,6 @@
 import { AccessToken } from './AccessToken';
-import { VideoGrant } from './grants';
+import type { VideoGrant } from './grants.js';
+import { TwirpRpc } from './TwirpRPC.js';
 
 /**
  * Utilities to handle authentication

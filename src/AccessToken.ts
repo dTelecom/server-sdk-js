@@ -1,8 +1,15 @@
-import * as jwt from 'jsonwebtoken';
-import KeyEncoder from "key-encoder";
-import axios from "axios";
-import {ClaimGrants, VideoGrant} from './grants';
-import {getAllNode, IFormattedNodeItem} from "./contract/contract";
+const { createSigner, createVerifier } = require('fast-jwt');
+const bs58 = require('bs58');
+const axios = require('axios');
+const { getAllNode } = require('./contract/contract');
+const crypto = require('crypto');
+
+// Import types
+import type { ClaimGrants, VideoGrant } from './grants';
+import type { IAllNodeResponseItem } from './contract/contract';
+
+// Check if we're in a Node.js environment
+const isNode = typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
 
 // 6 hours
 const defaultTTL = 6 * 60 * 60;
@@ -38,22 +45,12 @@ export interface AccessTokenOptions {
 
 export class AccessToken {
   private apiKey: string;
-
   private apiSecret: string;
-
   private grants: ClaimGrants;
-
-  private keyEncoder: KeyEncoder;
-
+  private signJwt: (payload: any) => string;
   identity?: string;
-
   ttl?: number | string;
 
-  /**
-   * Creates a new AccessToken
-   * @param apiKey API Key, can be set in env API_KEY
-   * @param apiSecret Secret, can be set in env API_SECRET
-   */
   constructor(apiKey?: string, apiSecret?: string, options?: AccessTokenOptions) {
     if (!apiKey) {
       apiKey = process.env.API_KEY;
@@ -63,8 +60,7 @@ export class AccessToken {
     }
     if (!apiKey || !apiSecret) {
       throw Error('api-key and api-secret must be set');
-    } else if (typeof document !== 'undefined') {
-      // check against document rather than window because deno provides window
+    } else if (!isNode) {
       console.error(
         'You should not include your API secret in your web client bundle.\n\n' +
         'Your web client should request a token from your backend server which should then use ' +
@@ -75,7 +71,35 @@ export class AccessToken {
     this.apiKey = apiKey;
     this.apiSecret = apiSecret;
     this.grants = {};
-    this.keyEncoder = new KeyEncoder('secp256k1');
+
+    if (!isNode) {
+      throw new Error('AccessToken should only be used on the server side');
+    }
+
+    // Create Ed25519 key pair using Node's crypto
+    const privateKeyBytes = bs58.decode(apiSecret);
+    const privateKeyObject = crypto.createPrivateKey({
+      key: Buffer.concat([
+        Buffer.from([0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x04, 0x22, 0x04, 0x20]),
+        Buffer.from(privateKeyBytes.slice(0, 32))
+      ]),
+      format: 'der',
+      type: 'pkcs8'
+    });
+
+    // Export private key in PEM format
+    const privateKeyPem = privateKeyObject.export({
+      format: 'pem',
+      type: 'pkcs8'
+    });
+
+    // Create signer function
+    this.signJwt = createSigner({
+      algorithm: 'EdDSA',
+      key: privateKeyPem as string,
+      iss: apiKey
+    });
+
     this.identity = options?.identity;
     this.ttl = options?.ttl || defaultTTL;
     if (options?.metadata) {
@@ -84,19 +108,18 @@ export class AccessToken {
     if (options?.name) {
       this.name = options.name;
     }
+    if (options?.webHookURL) {
+      this.webHookURL = options.webHookURL;
+    }
   }
 
-  /**
-   * Adds a video grant to this token.
-   * @param grant
-   */
   addGrant(grant: VideoGrant) {
-    this.grants.video = grant;
+    this.grants.video = {
+      ...this.grants.video,
+      ...grant,
+    };
   }
 
-  /**
-   * Set metadata to be passed to the Participant, used only when joining the room
-   */
   set metadata(md: string) {
     this.grants.metadata = md;
   }
@@ -117,28 +140,25 @@ export class AccessToken {
     this.grants.webHookURL = url;
   }
 
-  /**
-   * @returns JWT encoded token
-   */
   toJwt(): string {
-    // TODO: check for video grant validity
-
-    const opts: jwt.SignOptions = {
-      issuer: this.apiKey,
-      expiresIn: this.ttl,
-      notBefore: 0,
-      algorithm: 'ES256',
-    };
-    if (this.identity) {
-      opts.subject = this.identity;
-      opts.jwtid = this.identity;
-    } else if (this.grants.video?.roomJoin) {
-      throw Error('identity is required for join but not set');
+    if (!this.apiKey || !this.apiSecret) {
+      throw new Error('apiKey and apiSecret are required');
     }
 
-    const pemPrivateKey = this.keyEncoder.encodePrivate(this.apiSecret, 'raw', 'pem');
+    if (this.identity && this.grants.video?.roomJoin && !this.grants.video?.room) {
+      throw Error('room is required for join but not set');
+    }
 
-    return jwt.sign(this.grants, pemPrivateKey, opts);
+    const now = Math.floor(Date.now() / 1000);
+    const payload = {
+      ...this.grants,
+      iss: this.apiKey,
+      sub: this.identity || 'unknown',
+      nbf: now,
+      exp: now + (typeof this.ttl === 'number' ? this.ttl : defaultTTL)
+    };
+
+    return this.signJwt(payload);
   }
 
   /**
@@ -147,17 +167,6 @@ export class AccessToken {
   async getWsUrl(clientIp?: string): Promise<string> {
     let nodes = await getAllNode();
 
-    if (process.env.CONTRACT_ADDRESS === '0xa99885B0Ce9cE7C8B93c15bFc4deeAec419f2393') {
-      // tmp filter by this working ip addresses
-      const allowed = [
-        "858160983",
-        "860148438",
-        "860865934",
-        "908544406",
-      ];
-      nodes = nodes.filter(item => allowed.includes(item.ip));
-    }
-
     nodes = nodes.sort(() => 0.5 - Math.random());
 
     const address = await this.requestAddressForClient(nodes, clientIp);
@@ -165,20 +174,20 @@ export class AccessToken {
     return address;
   }
 
-  async requestAddressForClient(nodes: IFormattedNodeItem[], clientIp?: string) {
-    let address = `wss://${nodes[0].ip}.dtel.network`;
+  async requestAddressForClient(nodes: IAllNodeResponseItem[], clientIp?: string) {
+    let address = `wss://${nodes[0].domain}`;
 
     if (!clientIp) {
       return address;
     }
 
     for (const node of nodes) {
-      const response = await axios.get<{ domain: string }>(`https://${node.ip}.dtel.network/relevant`, {
+      const response = await axios.get(`https://${node.domain}/relevant`, {
         data: {ip: clientIp},
         timeout: 3000
       }).catch(() => null);
 
-      if (response?.data.domain) {
+      if (response?.data?.domain) {
         address = `wss://${response.data.domain}`;
         break;
       }
@@ -189,22 +198,40 @@ export class AccessToken {
 }
 
 export class TokenVerifier {
-  private apiKey: string;
+  private verifyJwt: (token: string) => any;
 
-  private apiSecret: string;
+  constructor(apiKey: string) {
+    if (!isNode) {
+      throw new Error('TokenVerifier should only be used on the server side');
+    }
 
-  private keyEncoder: KeyEncoder;
+    // Create Ed25519 public key using Node's crypto
+    const publicKeyBytes = bs58.decode(apiKey);
+    const publicKeyObject = crypto.createPublicKey({
+      key: Buffer.concat([
+        Buffer.from([0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00]),
+        Buffer.from(publicKeyBytes)
+      ]),
+      format: 'der',
+      type: 'spki'
+    });
 
-  constructor(apiKey: string, apiSecret: string) {
-    this.apiKey = apiKey;
-    this.apiSecret = apiSecret;
-    this.keyEncoder = new KeyEncoder('secp256k1');
+    // Export public key in PEM format
+    const publicKeyPem = publicKeyObject.export({
+      format: 'pem',
+      type: 'spki'
+    });
+
+    // Create verifier function
+    this.verifyJwt = createVerifier({
+      algorithms: ['EdDSA'],
+      key: publicKeyPem as string,
+      allowedIss: apiKey
+    });
   }
 
   verify(token: string): ClaimGrants {
-    const pemPrivateKey = this.keyEncoder.encodePublic(this.apiSecret, 'raw', 'pem');
-
-    const decoded = jwt.verify(token, pemPrivateKey, {issuer: this.apiKey, algorithms: ['ES256']});
+    const decoded = this.verifyJwt(token);
 
     if (!decoded) {
       throw Error('invalid token');
@@ -213,3 +240,9 @@ export class TokenVerifier {
     return decoded as ClaimGrants;
   }
 }
+
+// CommonJS exports for runtime
+module.exports = {
+  AccessToken,
+  TokenVerifier
+};

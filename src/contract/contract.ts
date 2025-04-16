@@ -1,50 +1,178 @@
-import Web3 from "web3"
-// @ts-ignore
-import ipInt from "ip-to-int"
-import ABI from "./ABI"
+import { Connection, PublicKey } from '@solana/web3.js';
+import type { AccountInfo } from '@solana/web3.js';
+import bs58 from 'bs58';
 
-const WEB3_GAS_LIMIT = Number(process.env.WEB3_GAS_LIMIT) || 30000000
+const DISCRIMINATOR_LENGTH = 8;
+const PUBLIC_KEY_LENGTH = 32;
+const DOMAIN_LENGTH_SIZE = 4;
+const ONLINE_STATUS_SIZE = 4;
+const ACTIVE_STATUS_SIZE = 1;
+const NODE_ENTRY_SIZE = DISCRIMINATOR_LENGTH + PUBLIC_KEY_LENGTH * 2 + DOMAIN_LENGTH_SIZE + 253 + ONLINE_STATUS_SIZE + ACTIVE_STATUS_SIZE;
 
-const provider = new Web3.providers.HttpProvider(process.env.WEB3_PROVIDER!)
-const web3 = new Web3(provider)
-
-const contract = new web3.eth.Contract(ABI, process.env.CONTRACT_ADDRESS, {
-  gas: WEB3_GAS_LIMIT,
-})
-
-interface IAllNodeResponseItem {
-  ip: string
-  active: boolean
-  key: string
+interface NodeEntry {
+  parent: PublicKey;
+  registered: PublicKey;
+  domain: string;
+  online: number;
+  active: boolean;
 }
 
-export interface IFormattedNodeItem extends IAllNodeResponseItem {
-  formattedIp: string
+export interface IAllNodeResponseItem {
+  domain: string;
+  key: string;
 }
 
-const formatNode = async (node: IAllNodeResponseItem): Promise<IFormattedNodeItem> => {
-  const formattedIp = ipInt(node.ip).toIP()
+interface ProgramAccount {
+  pubkey: PublicKey;
+  account: AccountInfo<Buffer>;
+}
 
-  return {
-    ...node,
-    formattedIp,
+interface RegistryConfig {
+  contractAddress: string;
+  networkHost: string;
+  registryAuthority: string;
+}
+
+class RegistryClient {
+  private connection: Connection;
+  private programId: PublicKey;
+  private registryAuthority: PublicKey;
+
+  constructor(config?: RegistryConfig) {
+    const contractAddress = config?.contractAddress || process.env.SOLANA_CONTRACT_ADDRESS;
+    const networkHost = config?.networkHost || process.env.SOLANA_NETWORK_HOST_HTTP;
+    const registryAuthority = config?.registryAuthority || process.env.SOLANA_REGISTRY_AUTHORITY;
+
+    if (!contractAddress || !networkHost || !registryAuthority) {
+      throw new Error('Missing required configuration. Required: contractAddress, networkHost, registryAuthority');
+    }
+
+    this.connection = new Connection(networkHost);
+    this.programId = new PublicKey(contractAddress);
+    this.registryAuthority = new PublicKey(registryAuthority);
+  }
+
+  private async findRegistryPDA(authority: PublicKey, name: string): Promise<[PublicKey, number]> {
+    return PublicKey.findProgramAddress(
+      [authority.toBytes(), Buffer.from(name)],
+      this.programId
+    );
+  }
+
+  private async findRegistryEntryPDA(accountToAdd: PublicKey, registry: PublicKey): Promise<[PublicKey, number]> {
+    return PublicKey.findProgramAddress(
+      [accountToAdd.toBytes(), registry.toBytes()],
+      this.programId
+    );
+  }
+
+  private parseNodeEntry(data: Buffer): NodeEntry {
+    // Skip discriminator
+    let offset = DISCRIMINATOR_LENGTH;
+
+    // Read parent public key
+    const parent = new PublicKey(data.slice(offset, offset + PUBLIC_KEY_LENGTH));
+    offset += PUBLIC_KEY_LENGTH;
+
+    // Read registered public key
+    const registered = new PublicKey(data.slice(offset, offset + PUBLIC_KEY_LENGTH));
+    offset += PUBLIC_KEY_LENGTH;
+
+    // Read domain length
+    const domainLength = data.readUInt32LE(offset);
+    offset += DOMAIN_LENGTH_SIZE;
+
+    // Read domain
+    const domain = data.slice(offset, offset + domainLength).toString();
+    offset += domainLength;
+
+    // Read online status
+    const online = data.readInt32LE(offset);
+    offset += ONLINE_STATUS_SIZE;
+
+    // Read active status
+    const active = data[offset] === 1;
+
+    return {
+      parent,
+      registered,
+      domain,
+      online,
+      active
+    };
+  }
+
+  async listNodes(): Promise<NodeEntry[]> {
+    const [registryPDA] = await this.findRegistryPDA(this.registryAuthority, 'nodes');
+
+    const accounts = await this.connection.getProgramAccounts(this.programId, {
+      filters: [
+        {
+          memcmp: {
+            offset: DISCRIMINATOR_LENGTH,
+            bytes: registryPDA.toBase58()
+          }
+        },
+        {
+          dataSize: NODE_ENTRY_SIZE
+        }
+      ]
+    });
+
+    return accounts.map((account: ProgramAccount) => this.parseNodeEntry(account.account.data));
+  }
+
+  async getNodeByAddress(address: string): Promise<NodeEntry | null> {
+    const [registryPDA] = await this.findRegistryPDA(this.registryAuthority, 'nodes');
+    const accountToCheck = new PublicKey(address);
+    const [entryPDA] = await this.findRegistryEntryPDA(accountToCheck, registryPDA);
+
+    const accountInfo = await this.connection.getAccountInfo(entryPDA);
+    if (!accountInfo || accountInfo.data.length === 0) {
+      return null;
+    }
+
+    return this.parseNodeEntry(accountInfo.data);
   }
 }
 
-export const getAllNode = async (): Promise<IFormattedNodeItem[]> => {
-  const tx = await contract.methods.getAllNode()
-  const gas = await estimateGas(tx)
-  const nodes = await tx.call({gas})
+let registryClient: RegistryClient | null = null;
 
-  return Promise.all(nodes.map(formatNode))
+function getRegistryClient(config?: RegistryConfig): RegistryClient {
+  if (!registryClient) {
+    registryClient = new RegistryClient(config);
+  }
+  return registryClient;
 }
 
-export const getNodeByAddress = async (address: string): Promise<IFormattedNodeItem> => {
-  const tx = await contract.methods.nodeByAddress(address)
-  const gas = await estimateGas(tx)
-  const node = await tx.call({gas})
+export const formatNode = async (node: NodeEntry): Promise<IAllNodeResponseItem> => {
+  return {
+    domain: node.domain,
+    key: node.registered.toBase58()
+  };
+};
 
-  return formatNode(node)
-}
+export const getAllNode = async (config?: RegistryConfig): Promise<IAllNodeResponseItem[]> => {
+  try {
+    const client = getRegistryClient(config);
+    const nodes = await client.listNodes();
+    return Promise.all(nodes.map(formatNode));
+  } catch (error) {
+    console.error('Error getting all nodes:', error);
+    return [];
+  }
+};
 
-const estimateGas = async (tx: any) => (await tx.estimateGas()) + 500000
+export const getNodeByAddress = async (address: string, config?: RegistryConfig): Promise<IAllNodeResponseItem> => {
+  try {
+    const client = getRegistryClient(config);
+    const node = await client.getNodeByAddress(address);
+    if (!node) {
+      throw new Error('Node not found');
+    }
+    return formatNode(node);
+  } catch (error) {
+    console.error('Error getting node by address:', error);
+    throw error;
+  }
+};

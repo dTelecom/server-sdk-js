@@ -1,39 +1,17 @@
-export * from './AccessToken';
-export * from './EgressClient';
-export * from './IngressClient';
-export * from './RoomServiceClient';
-export * from './WebhookReceiver';
-export * from './grants';
-export {
-  DirectFileOutput,
-  EgressInfo,
-  EncodedFileOutput,
-  EncodedFileType,
-  EncodingOptions,
-  EncodingOptionsPreset,
-  SegmentedFileOutput,
-  SegmentedFileProtocol,
-  StreamOutput,
-  StreamProtocol,
-} from './proto/livekit_egress';
-export {
-  IngressAudioEncodingOptions,
-  IngressAudioEncodingPreset,
-  IngressAudioOptions,
-  IngressInfo,
-  IngressInput,
-  IngressState,
-  IngressVideoEncodingOptions,
-  IngressVideoEncodingPreset,
-  IngressVideoOptions,
-} from './proto/livekit_ingress';
-export {
-  DataPacket_Kind,
-  ParticipantInfo,
-  ParticipantInfo_State,
-  ParticipantPermission,
-  Room,
-  TrackInfo,
-  TrackSource,
-  TrackType,
-} from './proto/livekit_models';
+// Import using require
+const { AccessToken } = require('./AccessToken');
+const { EgressClient } = require('./EgressClient');
+const { IngressClient } = require('./IngressClient');
+const { RoomServiceClient } = require('./RoomServiceClient');
+const { WebhookReceiver } = require('./WebhookReceiver');
+const grants = require('./grants');
+
+// Export everything
+module.exports = {
+  AccessToken,
+  EgressClient,
+  IngressClient,
+  RoomServiceClient,
+  WebhookReceiver,
+  grants,
+};

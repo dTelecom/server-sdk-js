@@ -439,6 +439,7 @@ export interface Room {
   metadata: string;
   numParticipants: number;
   activeRecording: boolean;
+  key: string;
 }
 
 export interface Codec {
@@ -480,6 +481,7 @@ export interface ParticipantInfo {
    * and can publish to the server
    */
   isPublisher: boolean;
+  relayed: boolean;
 }
 
 export enum ParticipantInfo_State {
@@ -906,6 +908,7 @@ function createBaseRoom(): Room {
     metadata: "",
     numParticipants: 0,
     activeRecording: false,
+    key: "",
   };
 }
 
@@ -940,6 +943,9 @@ export const Room = {
     }
     if (message.activeRecording === true) {
       writer.uint32(80).bool(message.activeRecording);
+    }
+    if (message.key !== "") {
+      writer.uint32(90).string(message.key);
     }
     return writer;
   },
@@ -981,6 +987,9 @@ export const Room = {
         case 10:
           message.activeRecording = reader.bool();
           break;
+        case 11:
+          message.key = reader.string();
+          break;
         default:
           reader.skipType(tag & 7);
           break;
@@ -1003,6 +1012,7 @@ export const Room = {
       metadata: isSet(object.metadata) ? String(object.metadata) : "",
       numParticipants: isSet(object.numParticipants) ? Number(object.numParticipants) : 0,
       activeRecording: isSet(object.activeRecording) ? Boolean(object.activeRecording) : false,
+      key: isSet(object.key) ? String(object.key) : "",
     };
   },
 
@@ -1022,6 +1032,7 @@ export const Room = {
     message.metadata !== undefined && (obj.metadata = message.metadata);
     message.numParticipants !== undefined && (obj.numParticipants = Math.round(message.numParticipants));
     message.activeRecording !== undefined && (obj.activeRecording = message.activeRecording);
+    message.key !== undefined && (obj.key = message.key);
     return obj;
   },
 
@@ -1037,6 +1048,7 @@ export const Room = {
     message.metadata = object.metadata ?? "";
     message.numParticipants = object.numParticipants ?? 0;
     message.activeRecording = object.activeRecording ?? false;
+    message.key = object.key ?? "";
     return message;
   },
 };
@@ -1238,6 +1250,7 @@ function createBaseParticipantInfo(): ParticipantInfo {
     permission: undefined,
     region: "",
     isPublisher: false,
+    relayed: false,
   };
 }
 
@@ -1275,6 +1288,9 @@ export const ParticipantInfo = {
     }
     if (message.isPublisher === true) {
       writer.uint32(104).bool(message.isPublisher);
+    }
+    if (message.relayed === true) {
+      writer.uint32(112).bool(message.relayed);
     }
     return writer;
   },
@@ -1319,6 +1335,9 @@ export const ParticipantInfo = {
         case 13:
           message.isPublisher = reader.bool();
           break;
+        case 14:
+          message.relayed = reader.bool();
+          break;
         default:
           reader.skipType(tag & 7);
           break;
@@ -1340,6 +1359,7 @@ export const ParticipantInfo = {
       permission: isSet(object.permission) ? ParticipantPermission.fromJSON(object.permission) : undefined,
       region: isSet(object.region) ? String(object.region) : "",
       isPublisher: isSet(object.isPublisher) ? Boolean(object.isPublisher) : false,
+      relayed: isSet(object.relayed) ? Boolean(object.relayed) : false,
     };
   },
 
@@ -1361,6 +1381,7 @@ export const ParticipantInfo = {
       (obj.permission = message.permission ? ParticipantPermission.toJSON(message.permission) : undefined);
     message.region !== undefined && (obj.region = message.region);
     message.isPublisher !== undefined && (obj.isPublisher = message.isPublisher);
+    message.relayed !== undefined && (obj.relayed = message.relayed);
     return obj;
   },
 
@@ -1379,6 +1400,7 @@ export const ParticipantInfo = {
       : undefined;
     message.region = object.region ?? "";
     message.isPublisher = object.isPublisher ?? false;
+    message.relayed = object.relayed ?? false;
     return message;
   },
 };
