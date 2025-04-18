@@ -1,6 +1,6 @@
 {
   "name": "@dtelecom/server-sdk-js",
-  "version": "2.0.5",
+  "version": "2.0.6",
   "description": "Server-side SDK",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -72,7 +72,7 @@
     "ts-loader": "^8.0.11",
     "ts-node": "^9.1.1",
     "ts-proto": "^1.131.0",
-    "typedoc": "^0.22.13",
+    "typedoc": "^0.28.2",
     "typescript": "5.7.x"
   }
 }

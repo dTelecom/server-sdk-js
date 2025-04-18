@@ -39,16 +39,12 @@ export class TwirpRpc {
     service: string,
     method: string,
     data: any,
-    options: { headers?: Record<string, string> } = {},
+    headers?: Record<string, string>,
   ): Promise<T> {
     const url = `${this.prefix}/${this.pkg}.${service}/${method}`;
 
     return this.instance
-      .post(url, data, {
-        headers: {
-          ...options.headers,
-        },
-      })
+      .post(url, data, { headers })
       .then((res: AxiosResponse) => {
         if (res.data === null || res.data === undefined) {
           return {};
