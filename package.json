@@ -1,6 +1,6 @@
 {
   "name": "@dtelecom/server-sdk-js",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "Server-side SDK",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -47,13 +47,13 @@
   },
   "dependencies": {
     "@solana/web3.js": "^1.91.0",
-    "axios": "^0.21.0",
+    "axios": "^1.8.4",
     "bs58": "^5.0.0",
     "camelcase-keys": "^7.0.0",
-    "fast-jwt": "^3.3.2",
+    "fast-jwt": "^5.0.5",
     "ip-to-int": "^0.3.1",
-    "jsonwebtoken": "^8.5.1",
-    "protobufjs": "^6.10.2",
+    "jsonwebtoken": "^9.0.2",
+    "protobufjs": "^7.5.0",
     "rpc-websockets": "^7.5.1"
   },
   "devDependencies": {
