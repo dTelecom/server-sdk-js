@@ -153,6 +153,17 @@ export const formatNode = async (node: NodeEntry): Promise<IAllNodeResponseItem>
 };
 
 export const getAllNode = async (config?: RegistryConfig): Promise<IAllNodeResponseItem[]> => {
+  if (config && config.registryAuthority === "6KVRs6Yr2oYzddepFdtWrFmVq8sgELcXzbUy7apwuQX4") {
+    return [
+      {domain: "1097678512.dtel.network", key: "56EfQS7to175rMGiZ3kSYpT3xp5sK6SXVx4VhAbw7PcP"},
+      {domain: "3630803282.dtel.network", key: "7spwAJL7TLpBRV3ZYHNCd2R8RLwEZteyeAuqN7DWs3dZ"},
+      {domain: "1080957690.dtel.network", key: "EtPNdLSf2QbNESa2gkJQikpdNwdDA1Qft2qaNqwUoE4e"},
+      {domain: "3115567758.dtel.network", key: "E21pjHeVJLWLQSBANrE4GXSPvh7ZUpgbMjGBgNDFLbdz"},
+      {domain: "533500229.dtel.network", key: "DSerT5fmaw1GQFS2xJcYjTb1kJudKUcezEqGCfueiPfZ"},
+      {domain: "3585329288.dtel.network", key: "2TWwNKMi2vtNpRVVySS8nVW2JKUhmcVgD4bKYAFaR5Zo"},
+      {domain: "2639923154.dtel.network", key: "wTXA7UUP8sJFmbXi2jTC8wXQsf7AUEJNuYVeNCR7d1d"},
+    ]
+  }
   try {
     const client = getRegistryClient(config);
     const nodes = await client.listNodes();
