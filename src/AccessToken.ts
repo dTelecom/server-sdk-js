@@ -166,7 +166,7 @@ export class AccessToken {
    */
   async getWsUrl(clientIp?: string): Promise<string> {
     let nodes = []
-    if (process.env.SOLANA_REGISTRY_AUTHORITYs === "6KVRs6Yr2oYzddepFdtWrFmVq8sgELcXzbUy7apwuQX4") {
+    if (process.env.SOLANA_REGISTRY_AUTHORITY === "6KVRs6Yr2oYzddepFdtWrFmVq8sgELcXzbUy7apwuQX4") {
       nodes = [
         {domain: "1097678512.dtel.network", key: "56EfQS7to175rMGiZ3kSYpT3xp5sK6SXVx4VhAbw7PcP"},
         {domain: "3630803282.dtel.network", key: "7spwAJL7TLpBRV3ZYHNCd2R8RLwEZteyeAuqN7DWs3dZ"},
@@ -192,7 +192,7 @@ export class AccessToken {
 
     if (nodes.length < 1) {
       console.error('Error requestAddressForClient nodes empty');
-      address = `wss://2639923154.dtel.network}`;
+      address = `wss://2639923154.dtel.network`;
     } else {
       address = `wss://${nodes[0].domain}`;
     }
