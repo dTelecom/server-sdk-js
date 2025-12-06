@@ -165,20 +165,7 @@ export class AccessToken {
    * @returns wss url
    */
   async getWsUrl(clientIp?: string): Promise<string> {
-    let nodes = []
-    if (process.env.SOLANA_REGISTRY_AUTHORITY === "6KVRs6Yr2oYzddepFdtWrFmVq8sgELcXzbUy7apwuQX4") {
-      nodes = [
-        {domain: "1097678512.dtel.network", key: "56EfQS7to175rMGiZ3kSYpT3xp5sK6SXVx4VhAbw7PcP"},
-        {domain: "3630803282.dtel.network", key: "7spwAJL7TLpBRV3ZYHNCd2R8RLwEZteyeAuqN7DWs3dZ"},
-        {domain: "1080957690.dtel.network", key: "EtPNdLSf2QbNESa2gkJQikpdNwdDA1Qft2qaNqwUoE4e"},
-        {domain: "3115567758.dtel.network", key: "E21pjHeVJLWLQSBANrE4GXSPvh7ZUpgbMjGBgNDFLbdz"},
-        {domain: "533500229.dtel.network", key: "DSerT5fmaw1GQFS2xJcYjTb1kJudKUcezEqGCfueiPfZ"},
-        {domain: "3585329288.dtel.network", key: "2TWwNKMi2vtNpRVVySS8nVW2JKUhmcVgD4bKYAFaR5Zo"},
-        {domain: "2639923154.dtel.network", key: "wTXA7UUP8sJFmbXi2jTC8wXQsf7AUEJNuYVeNCR7d1d"},
-      ]
-    } else {
-      nodes = await getAllNode();
-    }
+    let nodes = await getAllNode();
 
     nodes = nodes.sort(() => 0.5 - Math.random());
 
@@ -192,7 +179,7 @@ export class AccessToken {
 
     if (nodes.length < 1) {
       console.error('Error requestAddressForClient nodes empty');
-      address = `wss://2639923154.dtel.network`;
+      return address;
     } else {
       address = `wss://${nodes[0].domain}`;
     }

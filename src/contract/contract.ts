@@ -103,7 +103,7 @@ class RegistryClient {
   }
 
   async listNodes(): Promise<NodeEntry[]> {
-    const [registryPDA] = await this.findRegistryPDA(this.registryAuthority, 'nodes');
+    const [registryPDA] = await this.findRegistryPDA(this.registryAuthority, 'dtel-nodes');
 
     const accounts = await this.connection.getProgramAccounts(this.programId, {
       filters: [
@@ -123,7 +123,7 @@ class RegistryClient {
   }
 
   async getNodeByAddress(address: string): Promise<NodeEntry | null> {
-    const [registryPDA] = await this.findRegistryPDA(this.registryAuthority, 'nodes');
+    const [registryPDA] = await this.findRegistryPDA(this.registryAuthority, 'dtel-nodes');
     const accountToCheck = new PublicKey(address);
     const [entryPDA] = await this.findRegistryEntryPDA(accountToCheck, registryPDA);
 
@@ -153,6 +153,26 @@ export const formatNode = async (node: NodeEntry): Promise<IAllNodeResponseItem>
 };
 
 export const getAllNode = async (config?: RegistryConfig): Promise<IAllNodeResponseItem[]> => {
+  if (process.env.SOLANA_REGISTRY_AUTHORITY === "6KVRs6Yr2oYzddepFdtWrFmVq8sgELcXzbUy7apwuQX4") {
+    return [
+      {domain: "1097678512.dtel.network", key: "56EfQS7to175rMGiZ3kSYpT3xp5sK6SXVx4VhAbw7PcP"},
+      {domain: "3630803282.dtel.network", key: "7spwAJL7TLpBRV3ZYHNCd2R8RLwEZteyeAuqN7DWs3dZ"},
+      {domain: "1080957690.dtel.network", key: "EtPNdLSf2QbNESa2gkJQikpdNwdDA1Qft2qaNqwUoE4e"},
+      {domain: "3115567758.dtel.network", key: "E21pjHeVJLWLQSBANrE4GXSPvh7ZUpgbMjGBgNDFLbdz"},
+      {domain: "533500229.dtel.network", key: "DSerT5fmaw1GQFS2xJcYjTb1kJudKUcezEqGCfueiPfZ"},
+      {domain: "3585329288.dtel.network", key: "2TWwNKMi2vtNpRVVySS8nVW2JKUhmcVgD4bKYAFaR5Zo"},
+      {domain: "2639923154.dtel.network", key: "wTXA7UUP8sJFmbXi2jTC8wXQsf7AUEJNuYVeNCR7d1d"},
+    ]
+  }
+
+  if (process.env.SOLANA_REGISTRY_AUTHORITY === "8bxabQhCLRfpHZQjAXg9AmqqyQ2WJrXQVAQXH3YFzxwT") {
+    return [
+      {domain: "581250763.dtel.network", key: "CiKDiqBjHs9jTaJANgreQkVgA6J4YhVbYx55tU7swKfk"},
+      {domain: "600666983.dtel.network", key: "644PeDtMTPE1WFSaTC8BSjaNUN697frNRifciWSqiAZz"},
+      {domain: "581956361.dtel.network", key: "5g3euBKXqhdbfzkgbWQ7o1C6HQzbyr1noX6wiqfv2i3x"},
+    ]
+  }
+
   try {
     const client = getRegistryClient(config);
     const nodes = await client.listNodes();
