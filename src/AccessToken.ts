@@ -14,6 +14,23 @@ const isNode = typeof process !== 'undefined' && process.versions != null && pro
 // 6 hours
 const defaultTTL = 6 * 60 * 60;
 
+// Default cache TTL
+const defaultCacheTTL = 5 * 60 * 1000;
+
+// Response from /relevants endpoint
+interface RelevantResponse {
+  domain: string;
+  ip: string;
+}
+
+interface NodesCache {
+  nodes: IAllNodeResponseItem[];
+  timestamp: number;
+}
+
+// Global cache for available servers
+let nodesCache: NodesCache | null = null;
+
 export interface AccessTokenOptions {
   /**
    * amount of time before expiration
@@ -165,13 +182,34 @@ export class AccessToken {
    * @returns wss url
    */
   async getWsUrl(clientIp?: string): Promise<string> {
-    let nodes = await getAllNode();
+    const nodes = await this.getCachedNodes();
 
-    nodes = nodes.sort(() => 0.5 - Math.random());
+    if (nodes.length === 0) {
+      throw new Error('No available nodes found');
+    }
 
     const address = await this.requestAddressForClient(nodes, clientIp);
 
     return address;
+  }
+
+  /**
+   * @returns array of wss urls
+   */
+  async getWsUrls(clientIp?: string): Promise<string[]> {
+    const nodes = await this.getCachedNodes();
+
+    if (nodes.length === 0) {
+      throw new Error('No available nodes found');
+    }
+
+    if (!clientIp) {
+      return nodes.map((node: IAllNodeResponseItem) => `wss://${node.domain}`);
+    }
+
+    const relevantNodes = await this.requestRelevantsForClient(nodes, clientIp);
+
+    return relevantNodes.map((node: RelevantResponse) => `wss://${node.domain}`);
   }
 
   async requestAddressForClient(nodes: IAllNodeResponseItem[], clientIp?: string) {
@@ -189,18 +227,69 @@ export class AccessToken {
     }
 
     for (const node of nodes) {
-      const response = await axios.get(`https://${node.domain}/relevant`, {
-        data: {ip: clientIp},
-        timeout: 3000
-      }).catch(() => null);
+      const response = await axios.post(
+        `https://${node.domain}/relevants`,
+        { ip: clientIp },
+        {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 1000
+        }
+      ).catch(() => null);
 
-      if (response?.data?.domain) {
-        address = `wss://${response.data.domain}`;
+      if (response?.data && Array.isArray(response.data) && response.data.length > 0) {
+        address = `wss://${response.data[0].domain}`;
         break;
       }
     }
 
     return address;
+  }
+
+  /**
+   * Request relevant servers for client IP from /relevants endpoint
+   * @returns array of relevant servers sorted by proximity
+   */
+  async requestRelevantsForClient(nodes: IAllNodeResponseItem[], clientIp: string): Promise<RelevantResponse[]> {
+    for (const node of nodes) {
+      const response = await axios.post(
+        `https://${node.domain}/relevants`,
+        { ip: clientIp },
+        {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 1000
+        }
+      ).catch(() => null);
+
+      if (response?.data && Array.isArray(response.data) && response.data.length > 0) {
+        return response.data as RelevantResponse[];
+      }
+    }
+
+    return nodes.map((node: IAllNodeResponseItem) => ({
+      domain: node.domain,
+      ip: ''
+    }));
+  }
+
+  /**
+   * Get cached nodes or fetch fresh ones if cache is expired
+   * @returns array of available nodes
+   */
+  private async getCachedNodes(): Promise<IAllNodeResponseItem[]> {
+    const now = Date.now();
+
+    if (nodesCache && (now - nodesCache.timestamp) < defaultCacheTTL) {
+      return nodesCache.nodes;
+    }
+
+    const nodes = await getAllNode();
+
+    nodesCache = {
+      nodes,
+      timestamp: now
+    };
+
+    return nodes;
   }
 }
 
