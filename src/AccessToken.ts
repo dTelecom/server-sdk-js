@@ -14,6 +14,29 @@ const isNode = typeof process !== 'undefined' && process.versions != null && pro
 // 6 hours
 const defaultTTL = 6 * 60 * 60;
 
+const nodeRefreshInterval = 60 * 1000;
+
+// Response from /relevants endpoint
+interface RelevantResponse {
+  domain: string;
+  ip: string;
+  id?: string;
+  participants?: number;
+  country?: string;
+  city?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+interface NodesCache {
+  nodes: IAllNodeResponseItem[];
+  nodesOrdered: RelevantResponse[];
+  lastRefreshTime: number;
+}
+
+// Global cache for available servers
+let nodesCache: NodesCache | null = null;
+
 export interface AccessTokenOptions {
   /**
    * amount of time before expiration
@@ -165,42 +188,130 @@ export class AccessToken {
    * @returns wss url
    */
   async getWsUrl(clientIp?: string): Promise<string> {
-    let nodes = await getAllNode();
+    const addresses = await this.requestRelevantsForIp(clientIp);
+    const address = addresses[0];
 
-    nodes = nodes.sort(() => 0.5 - Math.random());
+    if (!address) {
+      throw new Error('Not found');
+    }
 
-    const address = await this.requestAddressForClient(nodes, clientIp);
-
-    return address;
+    return `wss://${address}`;
   }
 
-  async requestAddressForClient(nodes: IAllNodeResponseItem[], clientIp?: string) {
-    let address = "";
-
-    if (nodes.length < 1) {
-      console.error('Error requestAddressForClient nodes empty');
-      return address;
-    } else {
-      address = `wss://${nodes[0].domain}`;
-    }
-
+  /**
+   * @returns array of wss urls
+   */
+  async getWsUrls(clientIp?: string): Promise<string[]> {
     if (!clientIp) {
-      return address;
+      const nodes = await this.listNodes();
+      return nodes.map((node: IAllNodeResponseItem) => `wss://${node.domain}`);
     }
 
-    for (const node of nodes) {
-      const response = await axios.get(`https://${node.domain}/relevant`, {
-        data: {ip: clientIp},
-        timeout: 3000
-      }).catch(() => null);
+    const relevantNodes = await this.requestRelevantsForIp(clientIp);
+    return relevantNodes.map((domain) => `wss://${domain}`);
+  }
 
-      if (response?.data?.domain) {
-        address = `wss://${response.data.domain}`;
-        break;
+  private async listNodes(): Promise<IAllNodeResponseItem[]> {
+    await this.ensureCacheInitialized();
+    return nodesCache?.nodes || [];
+  }
+
+  private async getOrderedNodes(): Promise<string[]> {
+    await this.ensureCacheInitialized();
+
+    if (nodesCache && nodesCache.nodesOrdered.length > 0) {
+      return nodesCache.nodesOrdered.map(n => n.domain);
+    }
+
+    const nodes = await this.listNodes();
+    return nodes.map(n => n.domain);
+  }
+
+  private async ensureCacheInitialized(): Promise<void> {
+    if (!nodesCache) {
+      nodesCache = {
+        nodes: [],
+        nodesOrdered: [],
+        lastRefreshTime: 0
+      };
+
+      await this.refresh();
+      return;
+    }
+
+    const now = Date.now();
+    if (now - nodesCache.lastRefreshTime >= nodeRefreshInterval) {
+      await this.refresh()
+    }
+  }
+
+  async refresh(): Promise<void> {
+    try {
+      const nodes = await getAllNode();
+      const now = Date.now();
+
+      if (!nodesCache) {
+        nodesCache = {
+          nodes: [],
+          nodesOrdered: [],
+          lastRefreshTime: now
+        };
+      }
+
+      nodesCache.nodes = nodes;
+      nodesCache.lastRefreshTime = now;
+
+      const serverIp = process.env.SERVER_IP;
+      if (serverIp) {
+        const orderedNodes = await this.getOrderedNodes();
+        const relevants = await this.fetchRelevants(orderedNodes, serverIp);
+        if (relevants.length > 0) {
+          nodesCache.nodesOrdered = relevants;
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing nodes cache:', error);
+    }
+  }
+
+  private async fetchRelevants(domains: string[], ip: string): Promise<RelevantResponse[]> {
+    for (const domain of domains) {
+      try {
+        const response = await axios.post(
+          `https://${domain}/relevants`,
+          { ip },
+          {
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 1000
+          }
+        );
+        if (response?.data && Array.isArray(response.data) && response.data.length > 0) {
+          return response.data as RelevantResponse[];
+        }
+      } catch (error) {
+        console.error(`Failed to fetch relevants from ${domain}:`, error);
       }
     }
+    return [];
+  }
 
-    return address;
+  static clearCache(): void {
+    nodesCache = null;
+  }
+
+  async requestRelevantsForIp(ip?: string): Promise<string[]> {
+    const orderedNodes = await this.getOrderedNodes();
+
+    if (!ip) {
+      return orderedNodes;
+    }
+
+    const relevants = await this.fetchRelevants(orderedNodes, ip);
+    if (relevants.length > 0) {
+      return relevants.map(node => node.domain);
+    }
+
+    return orderedNodes;
   }
 }
 
