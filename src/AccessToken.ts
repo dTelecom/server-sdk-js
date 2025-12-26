@@ -227,17 +227,13 @@ export class AccessToken {
     }
 
     for (const node of nodes) {
-      const response = await axios.post(
-        `https://${node.domain}/relevants`,
-        { ip: clientIp },
-        {
-          headers: { 'Content-Type': 'application/json' },
-          timeout: 1000
-        }
-      ).catch(() => null);
+      const response = await axios.get(`https://${node.domain}/relevant`, {
+        data: { ip: clientIp },
+        timeout: 3000
+      }).catch(() => null);
 
-      if (response?.data && Array.isArray(response.data) && response.data.length > 0) {
-        address = `wss://${response.data[0].domain}`;
+      if (response?.data?.domain) {
+        address = `wss://${response.data.domain}`;
         break;
       }
     }
