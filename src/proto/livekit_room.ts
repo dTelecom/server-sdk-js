@@ -1,5 +1,5 @@
 /* eslint-disable */
-import * as _m0 from "protobufjs/minimal";
+import * as _m0 from "protobufjs/minimal.js";
 import { AutoTrackEgress, RoomCompositeEgressRequest } from "./livekit_egress.js";
 import {
   DataPacket_Kind,

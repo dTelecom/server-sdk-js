@@ -1,6 +1,6 @@
 /* eslint-disable */
 import Long from "long";
-import * as _m0 from "protobufjs/minimal";
+import * as _m0 from "protobufjs/minimal.js";
 import { Timestamp } from "./google/protobuf/timestamp.js";
 
 export const protobufPackage = "livekit";

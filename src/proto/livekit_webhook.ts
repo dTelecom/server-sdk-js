@@ -1,6 +1,6 @@
 /* eslint-disable */
 import Long from "long";
-import * as _m0 from "protobufjs/minimal";
+import * as _m0 from "protobufjs/minimal.js";
 import { EgressInfo } from "./livekit_egress.js";
 import { IngressInfo } from "./livekit_ingress.js";
 import { ParticipantInfo, Room, TrackInfo } from "./livekit_models.js";
