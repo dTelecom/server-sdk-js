@@ -1,10 +1,8 @@
 {
   "name": "@dtelecom/server-sdk-js",
-  "version": "3.0.2",
+  "version": "3.0.3",
   "description": "Server-side SDK",
-  "type": "module",
   "main": "./dist/index.js",
-  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "repository": "git@github.com:dTelecom/server-sdk-js.git",
   "author": "",
@@ -12,19 +10,19 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "default": "./dist/index.js"
     },
     "./contract": {
       "types": "./dist/contract/index.d.ts",
-      "import": "./dist/contract/index.js"
+      "default": "./dist/contract/index.js"
     },
     "./contract/*": {
       "types": "./dist/contract/*.d.ts",
-      "import": "./dist/contract/*.js"
+      "default": "./dist/contract/*.js"
     },
     "./proto/*": {
       "types": "./dist/proto/*.d.ts",
-      "import": "./dist/proto/*.js"
+      "default": "./dist/proto/*.js"
     }
   },
   "files": [
