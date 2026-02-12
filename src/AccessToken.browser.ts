@@ -44,6 +44,10 @@ export class AccessToken {
   async getWsUrl(clientIp?: string): Promise<string> {
     throw new Error('AccessToken can only be used on the server side');
   }
+
+  async getApiUrl(serverIp?: string): Promise<string> {
+    throw new Error('AccessToken can only be used on the server side');
+  }
 }
 
 export class TokenVerifier {

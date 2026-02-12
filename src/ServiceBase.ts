@@ -1,4 +1,4 @@
-import { AccessToken } from './AccessToken';
+import { AccessToken } from './AccessToken.js';
 import type { VideoGrant } from './grants.js';
 import { TwirpRpc } from './TwirpRPC.js';
 

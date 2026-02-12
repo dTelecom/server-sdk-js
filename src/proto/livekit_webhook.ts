@@ -1,9 +1,9 @@
 /* eslint-disable */
 import Long from "long";
-import _m0 from "protobufjs/minimal";
-import { EgressInfo } from "./livekit_egress";
-import { IngressInfo } from "./livekit_ingress";
-import { ParticipantInfo, Room, TrackInfo } from "./livekit_models";
+import * as _m0 from "protobufjs/minimal";
+import { EgressInfo } from "./livekit_egress.js";
+import { IngressInfo } from "./livekit_ingress.js";
+import { ParticipantInfo, Room, TrackInfo } from "./livekit_models.js";
 
 export const protobufPackage = "livekit";
 

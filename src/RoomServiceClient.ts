@@ -8,6 +8,10 @@ import {
 import {
   CreateRoomRequest,
   DeleteRoomRequest,
+  ListParticipantsRequest,
+  ListParticipantsResponse,
+  ListRoomsRequest,
+  ListRoomsResponse,
   MuteRoomTrackRequest,
   MuteRoomTrackResponse,
   RoomEgress,
@@ -101,6 +105,37 @@ export class RoomServiceClient extends ServiceBase {
       DeleteRoomRequest.toJSON({ room }),
       this.authHeader({ roomCreate: true }),
     );
+  }
+
+  /**
+   * List active rooms. Optionally filter by room name(s).
+   * Requires `roomCreate` permission.
+   * @param names optional list of room names to filter by
+   */
+  async listRooms(names?: string[]): Promise<Room[]> {
+    const data = await this.rpc.request(
+      svc,
+      'ListRooms',
+      ListRoomsRequest.toJSON(ListRoomsRequest.fromPartial({ names: names ?? [] })),
+      this.authHeader({ roomList: true }),
+    );
+    const res = ListRoomsResponse.fromJSON(data);
+    return res.rooms ?? [];
+  }
+
+  /**
+   * List participants in a room. Requires `roomAdmin` permission.
+   * @param room name of the room
+   */
+  async listParticipants(room: string): Promise<ParticipantInfo[]> {
+    const data = await this.rpc.request(
+      svc,
+      'ListParticipants',
+      ListParticipantsRequest.toJSON({ room }),
+      this.authHeader({ roomAdmin: true, room }),
+    );
+    const res = ListParticipantsResponse.fromJSON(data);
+    return res.participants ?? [];
   }
 
   /**

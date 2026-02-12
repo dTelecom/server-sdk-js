@@ -1,12 +1,11 @@
-const { createSigner, createVerifier } = require('fast-jwt');
-const bs58 = require('bs58');
-const axios = require('axios');
-const { getAllNode } = require('./contract/contract');
-const crypto = require('crypto');
+import { createSigner, createVerifier } from 'fast-jwt';
+import bs58 from 'bs58';
+import axios from 'axios';
+import { getAllNode } from './contract/contract.js';
+import crypto from 'crypto';
 
-// Import types
-import type { ClaimGrants, VideoGrant } from './grants';
-import type { IAllNodeResponseItem } from './contract/contract';
+import type { ClaimGrants, VideoGrant } from './grants.js';
+import type { IAllNodeResponseItem } from './contract/contract.js';
 
 // Check if we're in a Node.js environment
 const isNode = typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
@@ -162,45 +161,53 @@ export class AccessToken {
   }
 
   /**
-   * @returns wss url
+   * Resolves the closest dTelecom node domain.
+   * Shared by getWsUrl and getApiUrl.
    */
-  async getWsUrl(clientIp?: string): Promise<string> {
+  private async resolveNodeDomain(ip?: string): Promise<string> {
     let nodes = await getAllNode();
-
     nodes = nodes.sort(() => 0.5 - Math.random());
 
-    const address = await this.requestAddressForClient(nodes, clientIp);
-
-    return address;
-  }
-
-  async requestAddressForClient(nodes: IAllNodeResponseItem[], clientIp?: string) {
-    let address = "";
-
     if (nodes.length < 1) {
-      console.error('Error requestAddressForClient nodes empty');
-      return address;
-    } else {
-      address = `wss://${nodes[0].domain}`;
+      throw new Error('No dTelecom nodes available');
     }
 
-    if (!clientIp) {
-      return address;
-    }
+    let domain = nodes[0].domain;
 
-    for (const node of nodes) {
-      const response = await axios.get(`https://${node.domain}/relevant`, {
-        data: {ip: clientIp},
-        timeout: 3000
-      }).catch(() => null);
+    if (ip) {
+      for (const node of nodes) {
+        const response = await axios
+          .post(`https://${node.domain}/relevants`, { ip }, {
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 1000,
+          })
+          .catch(() => null);
 
-      if (response?.data?.domain) {
-        address = `wss://${response.data.domain}`;
-        break;
+        if (Array.isArray(response?.data) && response.data.length > 0 && response.data[0].domain) {
+          domain = response.data[0].domain;
+          break;
+        }
       }
     }
 
-    return address;
+    return domain;
+  }
+
+  /**
+   * @returns WebSocket URL (wss://) for the closest dTelecom node
+   */
+  async getWsUrl(clientIp?: string): Promise<string> {
+    const domain = await this.resolveNodeDomain(clientIp);
+    return `wss://${domain}`;
+  }
+
+  /**
+   * @returns HTTPS API URL for the closest dTelecom node.
+   * Use this to initialize RoomServiceClient, EgressClient, etc.
+   */
+  async getApiUrl(serverIp?: string): Promise<string> {
+    const domain = await this.resolveNodeDomain(serverIp);
+    return `https://${domain}`;
   }
 }
 
@@ -247,9 +254,3 @@ export class TokenVerifier {
     return decoded as ClaimGrants;
   }
 }
-
-// CommonJS exports for runtime
-module.exports = {
-  AccessToken,
-  TokenVerifier
-};

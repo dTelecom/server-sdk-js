@@ -1,6 +1,6 @@
 /* eslint-disable */
 import Long from "long";
-import _m0 from "protobufjs/minimal";
+import * as _m0 from "protobufjs/minimal";
 import {
   AudioCodec,
   audioCodecFromJSON,
@@ -13,7 +13,7 @@ import {
   videoCodecFromJSON,
   videoCodecToJSON,
   VideoLayer,
-} from "./livekit_models";
+} from "./livekit_models.js";
 
 export const protobufPackage = "livekit";
 

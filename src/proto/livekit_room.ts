@@ -1,14 +1,16 @@
 /* eslint-disable */
-import _m0 from "protobufjs/minimal";
-import { AutoTrackEgress, RoomCompositeEgressRequest } from "./livekit_egress";
+import * as _m0 from "protobufjs/minimal";
+import { AutoTrackEgress, RoomCompositeEgressRequest } from "./livekit_egress.js";
 import {
   DataPacket_Kind,
   dataPacket_KindFromJSON,
   dataPacket_KindToJSON,
+  ParticipantInfo,
   ParticipantPermission,
   ParticipantTracks,
+  Room,
   TrackInfo,
-} from "./livekit_models";
+} from "./livekit_models.js";
 
 export const protobufPackage = "livekit";
 
@@ -38,6 +40,24 @@ export interface DeleteRoomRequest {
 }
 
 export interface DeleteRoomResponse {
+}
+
+export interface ListRoomsRequest {
+  /** when set, only returns rooms with matching names */
+  names?: string[];
+}
+
+export interface ListRoomsResponse {
+  rooms?: Room[];
+}
+
+export interface ListParticipantsRequest {
+  /** name of the room */
+  room?: string;
+}
+
+export interface ListParticipantsResponse {
+  participants?: ParticipantInfo[];
 }
 
 export interface RoomParticipantIdentity {
@@ -341,6 +361,114 @@ export const DeleteRoomResponse = {
 
   fromPartial<I extends Exact<DeepPartial<DeleteRoomResponse>, I>>(_: I): DeleteRoomResponse {
     const message = createBaseDeleteRoomResponse();
+    return message;
+  },
+};
+
+function createBaseListRoomsRequest(): ListRoomsRequest {
+  return { names: [] };
+}
+
+export const ListRoomsRequest = {
+  fromJSON(object: any): ListRoomsRequest {
+    return {
+      names: Array.isArray(object?.names) ? object.names.map((e: any) => String(e)) : [],
+    };
+  },
+
+  toJSON(message: ListRoomsRequest): unknown {
+    const obj: any = {};
+    if (message.names) {
+      obj.names = message.names.map((e) => e);
+    } else {
+      obj.names = [];
+    }
+    return obj;
+  },
+
+  fromPartial<I extends Exact<DeepPartial<ListRoomsRequest>, I>>(object: I): ListRoomsRequest {
+    const message = createBaseListRoomsRequest();
+    message.names = object.names?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseListRoomsResponse(): ListRoomsResponse {
+  return { rooms: [] };
+}
+
+export const ListRoomsResponse = {
+  fromJSON(object: any): ListRoomsResponse {
+    return {
+      rooms: Array.isArray(object?.rooms) ? object.rooms.map((e: any) => Room.fromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: ListRoomsResponse): unknown {
+    const obj: any = {};
+    if (message.rooms) {
+      obj.rooms = message.rooms.map((e) => e ? Room.toJSON(e) : undefined);
+    } else {
+      obj.rooms = [];
+    }
+    return obj;
+  },
+
+  fromPartial<I extends Exact<DeepPartial<ListRoomsResponse>, I>>(object: I): ListRoomsResponse {
+    const message = createBaseListRoomsResponse();
+    message.rooms = object.rooms?.map((e) => Room.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseListParticipantsRequest(): ListParticipantsRequest {
+  return { room: "" };
+}
+
+export const ListParticipantsRequest = {
+  fromJSON(object: any): ListParticipantsRequest {
+    return { room: isSet(object.room) ? String(object.room) : "" };
+  },
+
+  toJSON(message: ListParticipantsRequest): unknown {
+    const obj: any = {};
+    message.room !== undefined && (obj.room = message.room);
+    return obj;
+  },
+
+  fromPartial<I extends Exact<DeepPartial<ListParticipantsRequest>, I>>(object: I): ListParticipantsRequest {
+    const message = createBaseListParticipantsRequest();
+    message.room = object.room ?? "";
+    return message;
+  },
+};
+
+function createBaseListParticipantsResponse(): ListParticipantsResponse {
+  return { participants: [] };
+}
+
+export const ListParticipantsResponse = {
+  fromJSON(object: any): ListParticipantsResponse {
+    return {
+      participants: Array.isArray(object?.participants)
+        ? object.participants.map((e: any) => ParticipantInfo.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: ListParticipantsResponse): unknown {
+    const obj: any = {};
+    if (message.participants) {
+      obj.participants = message.participants.map((e) => e ? ParticipantInfo.toJSON(e) : undefined);
+    } else {
+      obj.participants = [];
+    }
+    return obj;
+  },
+
+  fromPartial<I extends Exact<DeepPartial<ListParticipantsResponse>, I>>(object: I): ListParticipantsResponse {
+    const message = createBaseListParticipantsResponse();
+    message.participants = object.participants?.map((e) => ParticipantInfo.fromPartial(e)) || [];
     return message;
   },
 };

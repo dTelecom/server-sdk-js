@@ -1,7 +1,8 @@
 {
   "name": "@dtelecom/server-sdk-js",
-  "version": "2.0.12",
+  "version": "3.0.1",
   "description": "Server-side SDK",
+  "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -11,23 +12,19 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.js"
+      "import": "./dist/index.js"
     },
     "./contract": {
       "types": "./dist/contract/index.d.ts",
-      "import": "./dist/contract/index.js",
-      "require": "./dist/contract/index.js"
+      "import": "./dist/contract/index.js"
     },
     "./contract/*": {
       "types": "./dist/contract/*.d.ts",
-      "import": "./dist/contract/*.js",
-      "require": "./dist/contract/*.js"
+      "import": "./dist/contract/*.js"
     },
     "./proto/*": {
       "types": "./dist/proto/*.d.ts",
-      "import": "./dist/proto/*.js",
-      "require": "./dist/proto/*.js"
+      "import": "./dist/proto/*.js"
     }
   },
   "files": [
@@ -46,13 +43,13 @@
     "test": "jest --config jest.config.cjs"
   },
   "dependencies": {
-    "@solana/web3.js": "^1.91.0",
-    "axios": "^1.13.2",
+    "@solana/web3.js": "^1.98.4",
+    "axios": "^1.13.5",
     "bs58": "^5.0.0",
     "camelcase-keys": "^7.0.0",
     "fast-jwt": "^5.0.5",
     "ip-to-int": "^0.3.1",
-    "jsonwebtoken": "^9.0.2",
+    "jsonwebtoken": "^9.0.3",
     "protobufjs": "^7.5.0",
     "rpc-websockets": "^7.5.1"
   },
@@ -60,7 +57,7 @@
     "@types/bs58": "^4.0.4",
     "@types/geoip-lite": "^1.4.1",
     "@types/jest": "^29.5.12",
-    "@types/jsonwebtoken": "^8.5.0",
+    "@types/jsonwebtoken": "^9.0.10",
     "@typescript-eslint/eslint-plugin": "^4.29.1",
     "eslint": "^7.32.0",
     "eslint-config-airbnb-typescript": "^12.3.1",
@@ -68,11 +65,11 @@
     "eslint-plugin-import": "^2.32.0",
     "jest": "^30.2.0",
     "prettier": "^2.6.2",
-    "ts-jest": "^29.1.2",
+    "ts-jest": "^29.4.6",
     "ts-loader": "^8.0.11",
     "ts-node": "^9.1.1",
     "ts-proto": "^1.131.0",
-    "typedoc": "^0.28.2",
-    "typescript": "5.7.x"
+    "typedoc": "^0.28.16",
+    "typescript": "5.9.x"
   }
 }

@@ -1,8 +1,8 @@
-import type { AccessToken } from './AccessToken';
-import type { EgressClient } from './EgressClient';
-import type { IngressClient } from './IngressClient';
-import type { RoomServiceClient } from './RoomServiceClient';
-import type { WebhookReceiver } from './WebhookReceiver';
+import type { AccessToken } from './AccessToken.js';
+import type { EgressClient } from './EgressClient.js';
+import type { IngressClient } from './IngressClient.js';
+import type { RoomServiceClient } from './RoomServiceClient.js';
+import type { WebhookReceiver } from './WebhookReceiver.js';
 
 export type {
   AccessToken,
@@ -10,4 +10,4 @@ export type {
   IngressClient,
   RoomServiceClient,
   WebhookReceiver,
-}; 
+};
