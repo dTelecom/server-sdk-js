@@ -2,6 +2,10 @@ import { Connection, PublicKey } from '@solana/web3.js';
 import type { AccountInfo } from '@solana/web3.js';
 import bs58 from 'bs58';
 
+const DEFAULT_CONTRACT_ADDRESS = 'E2FcHsC9STeB6FEtxBKGAwMTX7cbfYMyjSHKs4QbBAmh';
+const DEFAULT_NETWORK_HOST = 'https://api.mainnet-beta.solana.com';
+const DEFAULT_REGISTRY_AUTHORITY = '6KVRs6Yr2oYzddepFdtWrFmVq8sgELcXzbUy7apwuQX4';
+
 const DISCRIMINATOR_LENGTH = 8;
 const PUBLIC_KEY_LENGTH = 32;
 const DOMAIN_LENGTH_SIZE = 4;
@@ -39,13 +43,9 @@ class RegistryClient {
   private registryAuthority: PublicKey;
 
   constructor(config?: RegistryConfig) {
-    const contractAddress = config?.contractAddress || process.env.SOLANA_CONTRACT_ADDRESS;
-    const networkHost = config?.networkHost || process.env.SOLANA_NETWORK_HOST_HTTP;
-    const registryAuthority = config?.registryAuthority || process.env.SOLANA_REGISTRY_AUTHORITY;
-
-    if (!contractAddress || !networkHost || !registryAuthority) {
-      throw new Error('Missing required configuration. Required: contractAddress, networkHost, registryAuthority');
-    }
+    const contractAddress = config?.contractAddress || process.env.SOLANA_CONTRACT_ADDRESS || DEFAULT_CONTRACT_ADDRESS;
+    const networkHost = config?.networkHost || process.env.SOLANA_NETWORK_HOST_HTTP || DEFAULT_NETWORK_HOST;
+    const registryAuthority = config?.registryAuthority || process.env.SOLANA_REGISTRY_AUTHORITY || DEFAULT_REGISTRY_AUTHORITY;
 
     this.connection = new Connection(networkHost);
     this.programId = new PublicKey(contractAddress);
@@ -153,7 +153,8 @@ export const formatNode = async (node: NodeEntry): Promise<IAllNodeResponseItem>
 };
 
 export const getAllNode = async (config?: RegistryConfig): Promise<IAllNodeResponseItem[]> => {
-  if (process.env.SOLANA_REGISTRY_AUTHORITY === "6KVRs6Yr2oYzddepFdtWrFmVq8sgELcXzbUy7apwuQX4") {
+  const authority = config?.registryAuthority || process.env.SOLANA_REGISTRY_AUTHORITY || DEFAULT_REGISTRY_AUTHORITY;
+  if (authority === "6KVRs6Yr2oYzddepFdtWrFmVq8sgELcXzbUy7apwuQX4") {
     return [
       {domain: "1097678512.dtel.network", key: "56EfQS7to175rMGiZ3kSYpT3xp5sK6SXVx4VhAbw7PcP"},
       {domain: "3630803282.dtel.network", key: "7spwAJL7TLpBRV3ZYHNCd2R8RLwEZteyeAuqN7DWs3dZ"},
@@ -165,7 +166,7 @@ export const getAllNode = async (config?: RegistryConfig): Promise<IAllNodeRespo
     ]
   }
 
-  if (process.env.SOLANA_REGISTRY_AUTHORITY === "8bxabQhCLRfpHZQjAXg9AmqqyQ2WJrXQVAQXH3YFzxwT") {
+  if (authority === "8bxabQhCLRfpHZQjAXg9AmqqyQ2WJrXQVAQXH3YFzxwT") {
     return [
       {domain: "581250763.dtel.network", key: "CiKDiqBjHs9jTaJANgreQkVgA6J4YhVbYx55tU7swKfk"},
       {domain: "600666983.dtel.network", key: "644PeDtMTPE1WFSaTC8BSjaNUN697frNRifciWSqiAZz"},
