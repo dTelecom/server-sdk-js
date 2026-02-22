@@ -2,6 +2,7 @@ import { createSigner, createVerifier } from 'fast-jwt';
 import bs58 from 'bs58';
 import axios from 'axios';
 import { getAllNode } from './contract/contract.js';
+import { isPrivateIp, resolvePublicIp } from './publicIp.js';
 import crypto from 'crypto';
 
 import type { ClaimGrants, VideoGrant } from './grants.js';
@@ -174,10 +175,15 @@ export class AccessToken {
 
     let domain = nodes[0].domain;
 
-    if (ip) {
+    let effectiveIp = ip;
+    if (!effectiveIp || isPrivateIp(effectiveIp)) {
+      effectiveIp = (await resolvePublicIp()) ?? undefined;
+    }
+
+    if (effectiveIp) {
       for (const node of nodes) {
         const response = await axios
-          .post(`https://${node.domain}/relevants`, { ip }, {
+          .post(`https://${node.domain}/relevants`, { ip: effectiveIp }, {
             headers: { 'Content-Type': 'application/json' },
             timeout: 1000,
           })

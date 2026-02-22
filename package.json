@@ -1,6 +1,6 @@
 {
   "name": "@dtelecom/server-sdk-js",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "description": "Server-side SDK",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

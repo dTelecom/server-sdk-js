@@ -4,4 +4,5 @@ export { RoomServiceClient } from './RoomServiceClient.js';
 export { EgressClient } from './EgressClient.js';
 export { IngressClient } from './IngressClient.js';
 export { WebhookReceiver } from './WebhookReceiver.js';
+export { resolvePublicIp, isPrivateIp } from './publicIp.js';
 export * from './grants.js';
