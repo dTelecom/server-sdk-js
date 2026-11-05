@@ -78,10 +78,10 @@ export interface ClaimGrants {
   sha256?: string;
   webHookURL?: string;
   // Standard JWT claims
-  iss?: string;  // Issuer
-  sub?: string;  // Subject
-  exp?: number;  // Expiration time
-  nbf?: number;  // Not before time
-  iat?: number;  // Issued at
-  jti?: string;  // JWT ID
+  iss?: string; // Issuer
+  sub?: string; // Subject
+  exp?: number; // Expiration time
+  nbf?: number; // Not before time
+  iat?: number; // Issued at
+  jti?: string; // JWT ID
 }

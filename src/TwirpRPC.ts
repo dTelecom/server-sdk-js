@@ -43,13 +43,11 @@ export class TwirpRpc {
   ): Promise<T> {
     const url = `${this.prefix}/${this.pkg}.${service}/${method}`;
 
-    return this.instance
-      .post(url, data, { headers })
-      .then((res: AxiosResponse) => {
-        if (res.data === null || res.data === undefined) {
-          return {};
-        }
-        return camelcaseKeys(res.data, { deep: true });
-      });
+    return this.instance.post(url, data, { headers }).then((res: AxiosResponse) => {
+      if (res.data === null || res.data === undefined) {
+        return {};
+      }
+      return camelcaseKeys(res.data, { deep: true });
+    });
   }
 }

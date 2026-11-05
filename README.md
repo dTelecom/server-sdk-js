@@ -1,132 +1,141 @@
-# Server API for JS
+# dTelecom Cloud server SDK for JavaScript
 
-Javascript/Typescript APIs to manage rooms and to create access tokens.
+`@dtelecom/server-sdk-js` 4.x talks to [dTelecom Cloud](https://dtelecom.org) from your backend: it issues participant tokens, extends sessions, administers rooms on the nodes and verifies webhooks.
+
+Version 4 is for projects created in dTelecom Cloud, which have an API key and secret. If your project holds a Solana keypair and signs tokens itself, stay on 3.x.
 
 ## Installation
 
-### Yarn
-
-```
-yarn add @dtelecom/server-sdk-js
+```shell
+npm install @dtelecom/server-sdk-js
 ```
 
-### NPM
+Node 18 or newer.
 
-```
-npm install @dtelecom/server-sdk-js --save
-```
-
-## Usage
-
-### Environment Variables
-
-You may store credentials in environment variables. If api-key or api-secret is not passed in when creating a `RoomServiceClient` or `AccessToken`, the values in the following env vars will be used:
-
-- `API_KEY`
-- `API_SECRET`
-
-### CommonJS
-
-If your environment doesn't support ES6 imports, replace the import statements in the examples with
-
-```javascript
-const serverJsSdkApi = require('@dtelecom/server-sdk-js');
-const AccessToken = serverJsSdkApi.AccessToken;
-const RoomServiceClient = serverJsSdkApi.RoomServiceClient;
-```
-
-### Creating Access Tokens
-
-Creating a token for participant to join a room.
+## Setup
 
 ```typescript
-import { AccessToken } from '@dtelecom/server-sdk-js';
+import { CloudClient } from '@dtelecom/server-sdk-js';
 
-// if this room doesn't exist, it'll be automatically created when the first
-// client joins
-const roomName = 'name-of-room';
-// identifier to be used for participant.
-// it's available as LocalParticipant.identity with client SDK
-const participantName = 'user-name';
-
-const at = new AccessToken('api-key', 'secret-key', {
-  identity: participantName,
+const cloud = new CloudClient({
+  apiKey: process.env.DTELECOM_API_KEY,
+  apiSecret: process.env.DTELECOM_API_SECRET,
+  baseUrl: 'https://cloud.dtelecom.org',
 });
-at.addGrant({ roomJoin: true, room: roomName });
-
-const token = at.toJwt();
-console.log('access token', token);
 ```
 
-By default, the token expires after 6 hours. you may override this by passing in `ttl` in the access token options. `ttl` is expressed in seconds (as number) or a string describing a time span [vercel/ms](https://github.com/vercel/ms). eg: '2 days', '10h'.
+Each option falls back to an environment variable: `DTELECOM_API_KEY`, `DTELECOM_API_SECRET` and `DTELECOM_CLOUD_URL`. Keep the client on the server: it holds the secret.
 
-### Permissions in Access Tokens
+## Participant tokens
 
-It's possible to customize the permissions of each participant:
+Your backend creates a token for each participant and hands `token` and `wsUrl` to the client SDK. Rooms are created when the first participant joins.
 
 ```typescript
-const at = new AccessToken('api-key', 'secret-key', {
-  identity: participantName,
-});
-
-at.addGrant({
-  roomJoin: true,
-  room: roomName,
-  canPublish: false,
-  canSubscribe: true,
+const { token, wsUrl, sessionId, expiresAt } = await cloud.createToken({
+  room: 'name-of-room',
+  identity: 'user-name',
+  name: 'Display name', // optional
+  metadata: JSON.stringify({ role: 'host' }), // optional
+  ttl: '2h', // default 6 hours, maximum 24 hours
+  clientIp: req.ip, // picks the nearest node for this participant
 });
 ```
 
-This will allow the participant to subscribe to tracks, but not publish their own to the room.
+The cloud checks the project's balance and concurrency limit and picks the node. Errors come as `CloudApiError` with the cloud's `code`, for example `insufficient_balance` (402) or `concurrency_limit` (429). A 503 with `code` `registry_sync_pending` or `nodes_unavailable` carries `retryAfter` in seconds.
 
-### Managing Rooms
+### Permissions
 
-`RoomServiceClient` gives you APIs to list, create, and delete rooms. It also requires a pair of api key/secret key to operate.
+Every participant can publish, subscribe and send data by default. Narrow that with `grants`:
 
 ```typescript
-import { RoomServiceClient, Room } from '@dtelecom/server-sdk-js';
-const host = 'https://my.host';
-const svc = new RoomServiceClient(host, 'api-key', 'secret-key');
-
-// list rooms
-svc.listRooms().then((rooms: Room[]) => {
-  console.log('existing rooms', rooms);
+// A viewer: watches and chats, cannot publish media.
+await cloud.createToken({
+  room,
+  identity,
+  grants: { canPublish: false },
 });
 
-// create a new room
-const opts = {
-  name: 'myroom',
-  // timeout in seconds
-  emptyTimeout: 10 * 60,
-  maxParticipants: 20,
-};
-svc.createRoom(opts).then((room: Room) => {
-  console.log('room created', room);
-});
-
-// delete a room
-svc.deleteRoom('myroom').then(() => {
-  console.log('room deleted');
+// A host who can kick and mute from the client SDK.
+await cloud.createToken({
+  room,
+  identity,
+  grants: { roomAdmin: true },
 });
 ```
+
+### Extending a session
+
+A session ends when its token expires. Extend it before that; the client applies the new token on its next reconnect, so the current connection stays up.
+
+```typescript
+const { token, expiresAt } = await cloud.extendToken(sessionId, '30m');
+```
+
+## Managing rooms
+
+`RoomServiceClient` calls the nodes' room API directly, authorised with short-lived admin tokens that the cloud mints for the project. A room's participants can sit on more than one node; the client sends each call to every node hosting the room.
+
+```typescript
+const svc = cloud.roomService();
+
+await svc.removeParticipant('name-of-room', 'user-name');
+const participants = await svc.listParticipants('name-of-room');
+await svc.mutePublishedTrack('name-of-room', 'user-name', trackSid, true);
+await svc.updateRoomMetadata('name-of-room', JSON.stringify({ topic: 'standup' }));
+await svc.sendData('name-of-room', payload, DataPacket_Kind.RELIABLE, { topic: 'chat' });
+await svc.deleteRoom('name-of-room');
+```
+
+A call to a room nobody has joined yet throws `RoomNotLiveError` (`deleteRoom` and `listParticipants` return quietly). A node's refusal is a `NodeApiError` with the node's `code`, such as `not_found`.
+
+There is no `createRoom`: rooms exist from the first join. Room-level settings such as an empty timeout are not configurable per room in the cloud.
 
 ## Webhooks
 
-The JS SDK also provides helper functions to decode and verify webhook callbacks. While verification is optional, it ensures the authenticity of the message.
+Nodes POST room events to the URLs in a participant's token. Pass them when creating the token:
 
-Check out [example projects](examples) for full examples of webhooks integration.
+```typescript
+await cloud.createToken({
+  room,
+  identity,
+  webhookUrls: ['https://your-app.example/api/webhook'],
+});
+```
+
+Events arrive for that participant: `participant_joined`, `participant_left`, `track_published`, `track_unpublished`, plus `room_started` and `room_finished`. Each delivery is signed by the sending node. `WebhookReceiver` checks the node against the node registry, verifies the signature and the body hash, and decodes the event. It needs the raw request body.
 
 ```typescript
 import { WebhookReceiver } from '@dtelecom/server-sdk-js';
 
-const receiver = new WebhookReceiver('apikey', 'apisecret');
+const receiver = new WebhookReceiver();
 
-// In order to use the validator, WebhookReceiver must have access to the raw POSTed string (instead of a parsed JSON object)
-// if you are using express middleware, ensure that `express.raw` is used for the webhook endpoint
-// router.use('/webhook/path', express.raw());
-
-app.post('/webhook-endpoint', (req, res) => {
-  // event is a WebhookEvent object
-  const event = receiver.receive(req.body, req.get('Authorization'));
+app.post('/api/webhook', express.raw({ type: '*/*' }), async (req, res) => {
+  try {
+    const event = await receiver.receive(req.body.toString(), req.get('Authorization'));
+    console.log(event.event, event.room?.name, event.participant?.identity);
+    res.sendStatus(200);
+  } catch (e) {
+    res.sendStatus(400);
+  }
 });
 ```
+
+The receiver reads the node registry on Solana. On the production network nothing needs configuring. On a test network set `SOLANA_REGISTRY_AUTHORITY` (and `SOLANA_NETWORK_HOST_HTTP`, `SOLANA_CONTRACT_ADDRESS` when they differ) to that network's values.
+
+`participant.rttMs` is the participant's round-trip time to the node, set on `participant_left` after a few seconds of connection. `room.key` identifies the project room.
+
+## Migrating from 3.x
+
+| 3.x | 4.x |
+| --- | --- |
+| `new AccessToken(apiKey, apiSecret, { identity, ttl, webHookURL })` + `addGrant` + `toJwt()` | `cloud.createToken({ room, identity, ttl, webhookUrls, grants })` |
+| `at.getWsUrl(clientIp)` | `wsUrl` from `createToken({ clientIp })` |
+| `at.getApiUrl()` + `new RoomServiceClient(apiUrl, apiKey, apiSecret)` | `cloud.roomService()` |
+| `svc.createRoom(...)`, `svc.listRooms()` | removed; rooms exist from the first join |
+| `EgressClient`, `IngressClient` | removed |
+| `new WebhookReceiver(apiKey, apiSecret)` | `new WebhookReceiver()` (arguments still accepted) |
+| `API_KEY`, `API_SECRET` env vars | `DTELECOM_API_KEY`, `DTELECOM_API_SECRET`, `DTELECOM_CLOUD_URL` |
+
+## License
+
+Apache 2.0

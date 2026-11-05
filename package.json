@@ -1,7 +1,7 @@
 {
   "name": "@dtelecom/server-sdk-js",
-  "version": "3.3.0",
-  "description": "Server-side SDK",
+  "version": "4.0.0",
+  "description": "dTelecom Cloud server SDK: participant tokens, room administration and webhooks",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "repository": "git@github.com:dTelecom/server-sdk-js.git",
@@ -46,16 +46,11 @@
     "bs58": "^5.0.0",
     "camelcase-keys": "^7.0.0",
     "fast-jwt": "^5.0.5",
-    "ip-to-int": "^0.3.1",
-    "jsonwebtoken": "^9.0.3",
-    "protobufjs": "^7.5.0",
-    "rpc-websockets": "^7.5.1"
+    "protobufjs": "^7.5.0"
   },
   "devDependencies": {
     "@types/bs58": "^4.0.4",
-    "@types/geoip-lite": "^1.4.1",
     "@types/jest": "^29.5.12",
-    "@types/jsonwebtoken": "^9.0.10",
     "@typescript-eslint/eslint-plugin": "^4.29.1",
     "eslint": "^7.32.0",
     "eslint-config-airbnb-typescript": "^12.3.1",
@@ -68,6 +63,10 @@
     "ts-node": "^9.1.1",
     "ts-proto": "^1.131.0",
     "typedoc": "^0.28.16",
-    "typescript": "5.9.x"
+    "typescript": "5.9.x",
+    "@types/node": "^20.0.0"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

@@ -1,3 +1,6 @@
+import axios from 'axios';
+
+import type { AdminToken, CloudClient } from './CloudClient.js';
 import {
   DataPacket_Kind,
   ParticipantInfo,
@@ -6,223 +9,131 @@ import {
   TrackInfo,
 } from './proto/livekit_models.js';
 import {
-  CreateRoomRequest,
   DeleteRoomRequest,
   ListParticipantsRequest,
   ListParticipantsResponse,
-  ListRoomsRequest,
-  ListRoomsResponse,
   MuteRoomTrackRequest,
   MuteRoomTrackResponse,
-  RoomEgress,
   RoomParticipantIdentity,
   SendDataRequest,
   UpdateParticipantRequest,
   UpdateRoomMetadataRequest,
   UpdateSubscriptionsRequest,
 } from './proto/livekit_room.js';
-import ServiceBase from './ServiceBase.js';
 import { livekitPackage, TwirpRpc } from './TwirpRPC.js';
-import type { Rpc } from './TwirpRPC.js';
-
-/**
- * Options for when creating a room
- */
-export interface CreateOptions {
-  /**
-   * name of the room. required
-   */
-  name: string;
-
-  /**
-   * number of seconds the room should clean up after being empty
-   */
-  emptyTimeout?: number;
-
-  /**
-   * limit to the number of participants in a room at a time
-   */
-  maxParticipants?: number;
-
-  /**
-   * initial room metadata
-   */
-  metadata?: string;
-
-  /**
-   * add egress options
-   */
-  egress?: RoomEgress;
-
-  /**
-   * override the node room is allocated to, for debugging
-   * does not work with Cloud
-   */
-  nodeId?: string;
-}
 
 export type SendDataOptions = { destinationSids?: string[]; topic?: string };
 
 const svc = 'RoomService';
+const tokenRefreshMarginMs = 60 * 1000;
+
+/** A node refused or failed a room API call. `code` is the Twirp error code, such as `not_found`. */
+export class NodeApiError extends Error {
+  readonly apiUrl: string;
+
+  readonly status?: number;
+
+  readonly code?: string;
+
+  constructor(apiUrl: string, message: string, status?: number, code?: string) {
+    super(`${apiUrl}: ${message}`);
+    this.name = 'NodeApiError';
+    this.apiUrl = apiUrl;
+    this.status = status;
+    this.code = code;
+  }
+}
+
+/** The room has no joined participant, so there is no node to call. */
+export class RoomNotLiveError extends Error {
+  constructor(room: string) {
+    super(`room ${JSON.stringify(room)} has no joined participants`);
+    this.name = 'RoomNotLiveError';
+  }
+}
+
+function toNodeError(apiUrl: string, err: unknown): NodeApiError {
+  if (axios.isAxiosError(err)) {
+    const data = err.response?.data as { code?: string; msg?: string } | undefined;
+    return new NodeApiError(apiUrl, data?.msg || err.message, err.response?.status, data?.code);
+  }
+  return new NodeApiError(apiUrl, err instanceof Error ? err.message : String(err));
+}
 
 /**
- * Client to access Room APIs
+ * Room administration through the nodes' Twirp API, authorised with admin tokens from the
+ * cloud. A room's participants can sit on more than one node, so every call goes to each node
+ * hosting the room; a call succeeds when at least one node accepts it.
  */
-export class RoomServiceClient extends ServiceBase {
-  private readonly rpc: Rpc;
+export class RoomServiceClient {
+  private readonly cloud: CloudClient;
 
-  /**
-   *
-   * @param host hostname including protocol. i.e. 'https://cluster.livekit.io'
-   * @param apiKey API Key, can be set in env var API_KEY
-   * @param secret API Secret, can be set in env var API_SECRET
-   */
-  constructor(host: string, apiKey?: string, secret?: string) {
-    super(apiKey, secret);
-    this.rpc = new TwirpRpc(host, livekitPackage);
+  private readonly admin = new Map<string, AdminToken>();
+
+  constructor(cloud: CloudClient) {
+    this.cloud = cloud;
   }
 
-  /**
-   * Creates a new room. Explicit room creation is not required, since rooms will
-   * be automatically created when the first participant joins. This method can be
-   * used to customize room settings.
-   * @param options
-   */
-  async createRoom(options: CreateOptions): Promise<Room> {
-    const data = await this.rpc.request(
-      svc,
-      'CreateRoom',
-      CreateRoomRequest.toJSON(CreateRoomRequest.fromPartial(options)),
-      this.authHeader({ roomCreate: true }),
-    );
-    return Room.fromJSON(data);
-  }
-
+  /** Ends the room on every node hosting it. A room nobody joined is already gone. */
   async deleteRoom(room: string): Promise<void> {
-    await this.rpc.request(
-      svc,
-      'DeleteRoom',
-      DeleteRoomRequest.toJSON({ room }),
-      this.authHeader({ roomCreate: true }),
-    );
+    const nodes = await this.nodes(room);
+    if (nodes.apiUrls.length === 0) return;
+    await this.onEachNode(nodes, 'DeleteRoom', DeleteRoomRequest.toJSON({ room }));
   }
 
-  /**
-   * List active rooms. Optionally filter by room name(s).
-   * Requires `roomCreate` permission.
-   * @param names optional list of room names to filter by
-   */
-  async listRooms(names?: string[]): Promise<Room[]> {
-    const data = await this.rpc.request(
-      svc,
-      'ListRooms',
-      ListRoomsRequest.toJSON(ListRoomsRequest.fromPartial({ names: names ?? [] })),
-      this.authHeader({ roomList: true }),
-    );
-    const res = ListRoomsResponse.fromJSON(data);
-    return res.rooms ?? [];
-  }
-
-  /**
-   * List participants in a room. Requires `roomAdmin` permission.
-   * @param room name of the room
-   */
+  /** Lists the joined participants across the room's nodes. */
   async listParticipants(room: string): Promise<ParticipantInfo[]> {
-    const data = await this.rpc.request(
-      svc,
+    const nodes = await this.nodes(room);
+    if (nodes.apiUrls.length === 0) return [];
+    const results = await this.onEachNode<any>(
+      nodes,
       'ListParticipants',
       ListParticipantsRequest.toJSON({ room }),
-      this.authHeader({ roomAdmin: true, room }),
     );
-    const res = ListParticipantsResponse.fromJSON(data);
-    return res.participants ?? [];
+    return results.flatMap((data) => ListParticipantsResponse.fromJSON(data).participants ?? []);
   }
 
-  /**
-   * Update metadata of a room
-   * @param room name of the room
-   * @param metadata the new metadata for the room
-   */
-  async updateRoomMetadata(room: string, metadata: string) {
-    const data = await this.rpc.request(
-      svc,
+  async updateRoomMetadata(room: string, metadata: string): Promise<Room> {
+    const data = await this.onRoom(
+      room,
       'UpdateRoomMetadata',
       UpdateRoomMetadataRequest.toJSON({ room, metadata }),
-      this.authHeader({ roomAdmin: true, room }),
     );
     return Room.fromJSON(data);
   }
 
-  /**
-   * Get information on a specific participant, including the tracks that participant
-   * has published
-   * @param room name of the room
-   * @param identity identity of the participant to return
-   */
   async getParticipant(room: string, identity: string): Promise<ParticipantInfo> {
-    const data = await this.rpc.request(
-      svc,
+    const data = await this.onRoom(
+      room,
       'GetParticipant',
       RoomParticipantIdentity.toJSON({ room, identity }),
-      this.authHeader({ roomAdmin: true, room }),
     );
-
     return ParticipantInfo.fromJSON(data);
   }
 
-  /**
-   * Removes a participant in the room. This will disconnect the participant
-   * and will emit a Disconnected event for that participant.
-   * Even after being removed, the participant can still re-join the room.
-   * @param room
-   * @param identity
-   */
+  /** Disconnects a participant. They can join again with a valid token. */
   async removeParticipant(room: string, identity: string): Promise<void> {
-    await this.rpc.request(
-      svc,
+    await this.onRoom(
+      room,
       'RemoveParticipant',
       RoomParticipantIdentity.toJSON({ room, identity }),
-      this.authHeader({ roomAdmin: true, room }),
     );
   }
 
-  /**
-   * Mutes a track that the participant has published.
-   * @param room
-   * @param identity
-   * @param trackSid sid of the track to be muted
-   * @param muted true to mute, false to unmute
-   */
   async mutePublishedTrack(
     room: string,
     identity: string,
     trackSid: string,
     muted: boolean,
   ): Promise<TrackInfo> {
-    const req = MuteRoomTrackRequest.toJSON({
+    const data = await this.onRoom(
       room,
-      identity,
-      trackSid,
-      muted,
-    });
-    const data = await this.rpc.request(
-      svc,
       'MutePublishedTrack',
-      req,
-      this.authHeader({ roomAdmin: true, room }),
+      MuteRoomTrackRequest.toJSON({ room, identity, trackSid, muted }),
     );
-    const res = MuteRoomTrackResponse.fromJSON(data);
-    return res.track!;
+    return MuteRoomTrackResponse.fromJSON(data).track!;
   }
 
-  /**
-   * Updates a participant's metadata or permissions
-   * @param room
-   * @param identity
-   * @param metadata optional, metadata to update
-   * @param permission optional, new permissions to assign to participant
-   * @param name optional, new name for participant
-   */
   async updateParticipant(
     room: string,
     identity: string,
@@ -237,69 +148,30 @@ export class RoomServiceClient extends ServiceBase {
       permission,
       name: name || '',
     };
-    const data = await this.rpc.request(
-      svc,
-      'UpdateParticipant',
-      UpdateParticipantRequest.toJSON(req),
-      this.authHeader({ roomAdmin: true, room }),
-    );
+    const data = await this.onRoom(room, 'UpdateParticipant', UpdateParticipantRequest.toJSON(req));
     return ParticipantInfo.fromJSON(data);
   }
 
-  /**
-   * Updates a participant's subscription to tracks
-   * @param room
-   * @param identity
-   * @param trackSids
-   * @param subscribe true to subscribe, false to unsubscribe
-   */
   async updateSubscriptions(
     room: string,
     identity: string,
     trackSids: string[],
     subscribe: boolean,
   ): Promise<void> {
-    const req = UpdateSubscriptionsRequest.toJSON({
+    await this.onRoom(
       room,
-      identity,
-      trackSids,
-      subscribe,
-      participantTracks: [],
-    });
-    await this.rpc.request(
-      svc,
       'UpdateSubscriptions',
-      req,
-      this.authHeader({ roomAdmin: true, room }),
+      UpdateSubscriptionsRequest.toJSON({
+        room,
+        identity,
+        trackSids,
+        subscribe,
+        participantTracks: [],
+      }),
     );
   }
 
-  /**
-   * Sends data message to participants in the room
-   * @param room
-   * @param data opaque payload to send
-   * @param kind delivery reliability
-   * @param options optionally specify a topic and destinationSids (when destinationSids is empty, message is sent to everyone)
-   */
-  async sendData(
-    room: string,
-    data: Uint8Array,
-    kind: DataPacket_Kind,
-    options: SendDataOptions,
-  ): Promise<void>;
-  /**
-   * Sends data message to participants in the room
-   * @param room
-   * @param data opaque payload to send
-   * @param kind delivery reliability
-   * @param destinationSids optional. when empty, message is sent to everyone
-   */
-  async sendData(
-    room: string,
-    data: Uint8Array,
-    kind: DataPacket_Kind,
-    destinationSids?: string[],
-  ): Promise<void>;
+  /** Sends a data message to the room, or to `destinationSids` only. */
   async sendData(
     room: string,
     data: Uint8Array,
@@ -308,13 +180,55 @@ export class RoomServiceClient extends ServiceBase {
   ): Promise<void> {
     const destinationSids = Array.isArray(options) ? options : options.destinationSids;
     const topic = Array.isArray(options) ? undefined : options.topic;
-    const req = SendDataRequest.toJSON({
+    await this.onRoom(
       room,
-      data,
-      kind,
-      destinationSids: destinationSids ?? [],
-      topic,
+      'SendData',
+      SendDataRequest.toJSON({ room, data, kind, destinationSids: destinationSids ?? [], topic }),
+    );
+  }
+
+  private async nodes(room: string): Promise<AdminToken> {
+    const cached = this.admin.get(room);
+    if (cached && cached.expiresAt.getTime() - Date.now() > tokenRefreshMarginMs) {
+      return cached;
+    }
+    const fresh = await this.cloud.adminToken(room);
+    this.admin.set(room, fresh);
+    return fresh;
+  }
+
+  /** Calls every node; returns the successes, or throws the first error when none succeeded. */
+  private async onEachNode<T>(nodes: AdminToken, method: string, body: unknown): Promise<T[]> {
+    const headers = { Authorization: `Bearer ${nodes.token}` };
+    const settled = await Promise.allSettled(
+      nodes.apiUrls.map((apiUrl) =>
+        new TwirpRpc(apiUrl, livekitPackage).request<T>(svc, method, body, headers).catch((err) => {
+          throw toNodeError(apiUrl, err);
+        }),
+      ),
+    );
+    const ok: T[] = [];
+    let firstError: unknown;
+    settled.forEach((r) => {
+      if (r.status === 'fulfilled') {
+        ok.push(r.value as T);
+      } else if (firstError === undefined) {
+        firstError = r.reason;
+      }
     });
-    await this.rpc.request(svc, 'SendData', req, this.authHeader({ roomAdmin: true, room }));
+    if (ok.length === 0) {
+      throw firstError instanceof Error ? firstError : new Error(String(firstError ?? 'no nodes'));
+    }
+    return ok;
+  }
+
+  /** Runs a call that must reach a live room and returns the first node's answer. */
+  private async onRoom(room: string, method: string, body: unknown): Promise<any> {
+    const nodes = await this.nodes(room);
+    if (nodes.apiUrls.length === 0) {
+      throw new RoomNotLiveError(room);
+    }
+    const [first] = await this.onEachNode<any>(nodes, method, body);
+    return first;
   }
 }

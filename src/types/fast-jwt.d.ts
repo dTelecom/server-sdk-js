@@ -15,4 +15,4 @@ declare module 'fast-jwt' {
 
   export function createSigner(options: SignerOptions): (payload: any) => string;
   export function createVerifier(options: VerifierOptions): (token: string) => any;
-} 
+}
