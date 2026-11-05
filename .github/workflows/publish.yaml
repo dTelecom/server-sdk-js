@@ -1,4 +1,7 @@
-name: Publish
+name: Release build
+
+# Builds the package and docs for a version tag. The npm publish itself is done by a package
+# owner with `npm publish --otp=<code>`: the account has 2FA and the repo holds no npm token.
 
 # Controls when the action will run.
 on:
@@ -32,17 +35,3 @@ jobs:
 
       - name: Build Docs
         run: npm run build-docs
-
-      - name: Publish to npm
-        run: |
-          npm config set '//registry.npmjs.org/:_authToken' $NPM_TOKEN
-          npm publish
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: S3 Upload
-        run: aws s3 cp docs/ s3://livekit-docs/server-sdk-js --recursive
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.DOCS_DEPLOY_AWS_ACCESS_KEY }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.DOCS_DEPLOY_AWS_API_SECRET }}
-          AWS_DEFAULT_REGION: "us-east-1"
