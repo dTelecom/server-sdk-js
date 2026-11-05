@@ -18,29 +18,20 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20.x'
-      - uses: actions/cache@v2
-        with:
-          path: |
-            ~/.npm
-            ~/.config/yarn/global
-          key: ${{ runner.os }}-node-server-api-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-node-server-api-
+          cache: npm
 
-      - name: Install Yarn
-        run: |
-          npm install -g yarn
-          yarn install
+      - name: Install
+        run: npm ci
 
       - name: Build
-        run: yarn build
+        run: npm run build
 
       - name: Build Docs
-        run: yarn build-docs
+        run: npm run build-docs
 
       - name: Publish to npm
         run: |
