@@ -1,7 +1,7 @@
 {
   "name": "@dtelecom/server-sdk-js",
-  "version": "4.0.0",
-  "description": "dTelecom Cloud server SDK: participant tokens, room administration and webhooks",
+  "version": "4.1.0",
+  "description": "dTelecom Cloud server SDK: participant tokens, room administration, webhooks and hosted AI services",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "repository": "git@github.com:dTelecom/server-sdk-js.git",

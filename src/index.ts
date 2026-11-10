@@ -7,6 +7,19 @@ export type {
   ExtendedToken,
   AdminToken,
 } from './CloudClient.js';
+export type { MediaInput } from './cloud/http.js';
+export type {
+  STTService,
+  TTSService,
+  TranscriptionsService,
+  WavService,
+  VisionService,
+  ModerationService,
+  ModerationStreamOptions,
+} from './cloud/services.js';
+export { ModerationStream } from './cloud/moderationStream.js';
+export type { ModerationSocket, ModerationSocketFactory } from './cloud/moderationStream.js';
+export type * from './cloud/types.js';
 export { RoomServiceClient, NodeApiError, RoomNotLiveError } from './RoomServiceClient.js';
 export type { SendDataOptions } from './RoomServiceClient.js';
 export { TokenVerifier } from './TokenVerifier.js';

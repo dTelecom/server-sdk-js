@@ -1,7 +1,22 @@
 import { RoomServiceClient } from './RoomServiceClient.js';
+import { durationToMinutes } from './cloud/duration.js';
+import { CloudHttp } from './cloud/http.js';
+import {
+  ModerationService,
+  STTService,
+  TTSService,
+  TranscriptionsService,
+  VisionService,
+  WavService,
+  getTranslation,
+  translate,
+} from './cloud/services.js';
+import type { TranslateOptions, Translation } from './cloud/types.js';
+
+export { CloudApiError } from './cloud/http.js';
+export { durationToMinutes } from './cloud/duration.js';
 
 const defaultTTLSeconds = 6 * 60 * 60;
-const maxMinutes = 1440;
 
 /** Connection to dTelecom Cloud. Credentials fall back to env vars. */
 export interface CloudClientOptions {
@@ -73,77 +88,31 @@ export interface AdminToken {
   expiresAt: Date;
 }
 
-/** A non-2xx answer from the cloud. `code` is the cloud's error code, such as `insufficient_balance`. */
-export class CloudApiError extends Error {
-  readonly status: number;
-
-  readonly code: string;
-
-  /** Seconds to wait before retrying, when the cloud says so (503s). */
-  readonly retryAfter?: number;
-
-  constructor(status: number, code: string, retryAfter?: number) {
-    super(`dTelecom Cloud: ${status} ${code}`);
-    this.name = 'CloudApiError';
-    this.status = status;
-    this.code = code;
-    this.retryAfter = retryAfter;
-  }
-}
-
 /**
- * Parses a lifetime into whole minutes: a number of seconds, or a string with a unit
- * (s, m, h, d). Rounds up, at least 1 minute.
- */
-export function durationToMinutes(
-  value: number | string | undefined,
-  fallbackSeconds: number,
-): number {
-  let seconds: number;
-  if (value === undefined) {
-    seconds = fallbackSeconds;
-  } else if (typeof value === 'number') {
-    seconds = value;
-  } else {
-    const match =
-      /^\s*(\d+(?:\.\d+)?)\s*(s|sec|secs|seconds?|m|min|mins|minutes?|h|hr|hrs|hours?|d|days?)?\s*$/i.exec(
-        value,
-      );
-    if (!match) {
-      throw new Error(`invalid duration: ${JSON.stringify(value)}`);
-    }
-    const amount = Number(match[1]);
-    const unit = (match[2] || 's').toLowerCase();
-    if (unit.startsWith('d')) {
-      seconds = amount * 86400;
-    } else if (unit.startsWith('h')) {
-      seconds = amount * 3600;
-    } else if (unit.startsWith('m')) {
-      seconds = amount * 60;
-    } else {
-      seconds = amount;
-    }
-  }
-  if (!Number.isFinite(seconds) || seconds <= 0) {
-    throw new Error(`invalid duration: ${JSON.stringify(value)}`);
-  }
-  const minutes = Math.ceil(seconds / 60);
-  if (minutes > maxMinutes) {
-    throw new Error(`duration above the 24 hour maximum: ${JSON.stringify(value)}`);
-  }
-  return minutes;
-}
-
-/**
- * Client of the dTelecom Cloud hosted API. It issues participant tokens, extends sessions and
- * mints room admin tokens. Use it only on the server: it holds the API secret.
+ * Client of the dTelecom Cloud hosted API: participant tokens and room administration, live
+ * speech sessions, file transcription, WAV synthesis, translation, vision and moderation. Use it
+ * only on the server: it holds the API secret.
  */
 export class CloudClient {
-  private readonly authorization: string;
+  /** Live speech-to-text sessions. */
+  readonly stt: STTService;
 
-  private readonly baseUrl: string;
+  /** Live text-to-speech sessions. */
+  readonly tts: TTSService;
 
-  private readonly fetchImpl: typeof fetch;
+  /** Asynchronous file transcription. */
+  readonly transcriptions: TranscriptionsService;
+
+  /** Asynchronous text or SSML to WAV synthesis. */
+  readonly wav: WavService;
+
+  /** Questions about images. */
+  readonly vision: VisionService;
+
+  /** Audio and video frame moderation, per item or over a WebSocket. */
+  readonly moderation: ModerationService;
+
+  private readonly http: CloudHttp;
 
   constructor(options: CloudClientOptions = {}) {
     const apiKey = options.apiKey ?? process.env.DTELECOM_API_KEY;
@@ -161,9 +130,17 @@ export class CloudClient {
     if (typeof fetchImpl !== 'function') {
       throw new Error('dTelecom Cloud: no fetch available; use Node 18+ or pass options.fetch');
     }
-    this.authorization = `Bearer ${apiKey}:${apiSecret}`;
-    this.baseUrl = baseUrl.replace(/\/+$/, '');
-    this.fetchImpl = fetchImpl;
+    this.http = new CloudHttp(
+      `Bearer ${apiKey}:${apiSecret}`,
+      baseUrl.replace(/\/+$/, ''),
+      fetchImpl,
+    );
+    this.stt = new STTService(this.http);
+    this.tts = new TTSService(this.http);
+    this.transcriptions = new TranscriptionsService(this.http);
+    this.wav = new WavService(this.http);
+    this.vision = new VisionService(this.http);
+    this.moderation = new ModerationService(this.http);
   }
 
   /** Creates a participant session and returns the token and node URL for the client. */
@@ -231,28 +208,20 @@ export class CloudClient {
     return new RoomServiceClient(this);
   }
 
+  /**
+   * Translates text, billed per Unicode code point of `q`. `status: 'running'` means call again
+   * with the same key, or poll with `getTranslation`.
+   */
+  async translate(options: TranslateOptions): Promise<Translation> {
+    return translate(this.http, options);
+  }
+
+  /** Polls a translation, or reads its stored result without another charge. */
+  async getTranslation(requestId: string): Promise<Translation> {
+    return getTranslation(this.http, requestId);
+  }
+
   private async post<T>(path: string, body: unknown): Promise<T> {
-    const res = await this.fetchImpl(this.baseUrl + path, {
-      method: 'POST',
-      headers: { Authorization: this.authorization, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const text = await res.text();
-    if (!res.ok) {
-      let code = `http_${res.status}`;
-      try {
-        const parsed = JSON.parse(text);
-        if (parsed && typeof parsed.error === 'string') code = parsed.error;
-      } catch {
-        // not JSON: keep the status code
-      }
-      const retryAfter = Number(res.headers.get('Retry-After'));
-      throw new CloudApiError(
-        res.status,
-        code,
-        Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined,
-      );
-    }
-    return JSON.parse(text) as T;
+    return this.http.json<T>('POST', path, body);
   }
 }
