@@ -2,7 +2,7 @@
 
 `@dtelecom/server-sdk-js` 4.x talks to [dTelecom Cloud](https://dtelecom.org) from your backend: it issues participant tokens, extends sessions, administers rooms on the nodes and verifies webhooks. From 4.1 it also calls the hosted AI services: live speech-to-text and text-to-speech, file transcription, WAV synthesis, translation, vision and content moderation.
 
-Version 4 is for projects created in dTelecom Cloud, which have an API key and secret. If your project holds a Solana keypair and signs tokens itself, stay on 3.x.
+Version 4 is for projects created in dTelecom Cloud, which have an API key and secret. If your project holds a Solana keypair and signs tokens itself, stay on 3.x (branch [`dtelecom-db`](https://github.com/dTelecom/server-sdk-js/tree/dtelecom-db)).
 
 ## Installation
 
@@ -65,7 +65,7 @@ await cloud.createToken({
 
 ### Extending a session
 
-A session ends when its token expires. Extend it before that; the client applies the new token on its next reconnect, so the current connection stays up.
+A participant is removed from the room a minute after its token expires. Extend it before that; the client applies the new token on its next reconnect, so the current connection stays up. After that minute, `extendToken` throws `session_not_extendable`. A number is seconds; a string can be `'15m'` or `'2h'`.
 
 ```typescript
 const { token, expiresAt } = await cloud.extendToken(sessionId, '30m');
@@ -100,7 +100,7 @@ Media can be a `Blob` or bytes, such as a Node `Buffer`. Responses are camelCase
 
 ### Live speech-to-text and text-to-speech
 
-A speech session is prepaid: STT by time, TTS by characters. Connect to `serverUrl` and send `token` as the `session_key` of the speech server protocol. Pass the participant's WebRTC `sessionId` to link the speech to its room.
+A speech session is prepaid: STT by time, TTS by characters. Open a WebSocket to `streamUrl` and send `token` as the `session_key` of the speech server protocol. A key serves one connection: after a disconnect, create a new session. Pass the participant's WebRTC `sessionId` to link the speech to its room.
 
 ```typescript
 const stt = await cloud.stt.createSession({ duration: '30m', language: 'en', webrtcSessionId: sessionId });

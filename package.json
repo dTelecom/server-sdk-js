@@ -1,6 +1,6 @@
 {
   "name": "@dtelecom/server-sdk-js",
-  "version": "4.1.0",
+  "version": "4.2.0",
   "description": "dTelecom Cloud server SDK: participant tokens, room administration, webhooks and hosted AI services",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

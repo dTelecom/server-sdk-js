@@ -26,6 +26,8 @@ function speechSession(r: Raw): SpeechSession {
     sessionId: r.session_id,
     token: r.token,
     serverUrl: r.server_url,
+    // Clouds before 2026-11-16 return no stream_url.
+    streamUrl: r.stream_url ?? `${String(r.server_url).replace(/\/+$/, '')}/v1/stream`,
     expiresAt: new Date(r.expires_at),
   };
 }
@@ -34,7 +36,10 @@ function speechSession(r: Raw): SpeechSession {
 export class STTService {
   constructor(private readonly http: CloudHttp) {}
 
-  /** Opens a session: connect to `serverUrl` and send `token` as `session_key`. */
+  /**
+   * Opens a session: connect to `streamUrl` and send `token` as `session_key`. A key serves one
+   * connection; after a disconnect, open a new session.
+   */
   async createSession(options: CreateSTTSessionOptions): Promise<SpeechSession> {
     const body: Raw = { duration_minutes: durationToMinutes(options.duration, 0) };
     if (options.language) body.language = options.language;
@@ -59,7 +64,10 @@ export class STTService {
 export class TTSService {
   constructor(private readonly http: CloudHttp) {}
 
-  /** Opens a session: connect to `serverUrl` and send `token` as `session_key`. */
+  /**
+   * Opens a session: connect to `streamUrl` and send `token` as `session_key`. A key serves one
+   * connection; after a disconnect, open a new session.
+   */
   async createSession(options: CreateTTSSessionOptions): Promise<SpeechSession> {
     const body: Raw = { max_characters: options.maxCharacters };
     if (options.language) body.language = options.language;

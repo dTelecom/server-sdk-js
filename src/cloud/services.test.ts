@@ -85,6 +85,9 @@ describe('CloudClient speech sessions', () => {
               session_id: 's1',
               token: 'key1',
               server_url: 'https://speech.example',
+              ...(req.path === '/v1/stt/session'
+                ? { stream_url: 'wss://speech.example/v1/stream' }
+                : {}),
               expires_at: '2030-01-01T00:00:00Z',
             },
           };
@@ -107,6 +110,7 @@ describe('CloudClient speech sessions', () => {
         sessionId: 's1',
         token: 'key1',
         serverUrl: 'https://speech.example',
+        streamUrl: 'wss://speech.example/v1/stream',
         expiresAt: new Date('2030-01-01T00:00:00Z'),
       });
       expect(cloud.requests[0].headers.authorization).toBe('Bearer key:secret');
@@ -122,7 +126,9 @@ describe('CloudClient speech sessions', () => {
       });
       expect(cloud.requests[1].json).toEqual({ session_id: 's1', additional_minutes: 10 });
 
-      await cloud.client.tts.createSession({ maxCharacters: 1000, voice: 'af_heart' });
+      // A cloud without stream_url: the address is built from server_url.
+      const tts = await cloud.client.tts.createSession({ maxCharacters: 1000, voice: 'af_heart' });
+      expect(tts.streamUrl).toBe('https://speech.example/v1/stream');
       expect(cloud.requests[2].json).toEqual({ max_characters: 1000, voice: 'af_heart' });
 
       expect(await cloud.client.tts.extend('s1', 2000)).toEqual({

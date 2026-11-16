@@ -182,6 +182,13 @@ export class CloudClient {
   /**
    * Extends a session and returns a token for the whole remaining time. The client applies it
    * on its next reconnect; the node keeps the current connection open.
+   *
+   * Call it before `expiresAt`: a participant whose token expired without an extension is
+   * removed from the room a minute after the expiry, and later calls throw a `CloudApiError`
+   * with code `session_not_extendable` (409).
+   *
+   * @param additional Time to add: seconds as a number, or a string such as `'15m'` or `'2h'`.
+   *   Rounded up to whole minutes, at most 24 hours per call.
    */
   async extendToken(sessionId: string, additional: number | string): Promise<ExtendedToken> {
     const res = await this.post<{ token: string; ws_url: string; new_expires_at: string }>(

@@ -29,8 +29,10 @@ export interface SpeechSession {
   sessionId: string;
   /** Session key for the speech server (`session_key` in its protocol). */
   token: string;
-  /** Speech server to connect to. */
+  /** Speech server origin, as signed into the key. */
   serverUrl: string;
+  /** WebSocket address to open: `serverUrl` + `/v1/stream`. */
+  streamUrl: string;
   expiresAt: Date;
 }
 
@@ -65,7 +67,7 @@ export interface CreateTranscriptionOptions {
   /** 1-128 printable ASCII characters. Reuse it to retry the same upload. */
   idempotencyKey: string;
   filename?: string;
-  /** Language code; detected when omitted. */
+  /** Language code, `en` by default. `auto` is not accepted for files. */
   language?: string;
   /** Speaker diarization; on by default. */
   diarize?: boolean;
