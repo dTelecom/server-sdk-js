@@ -92,7 +92,7 @@ There is no `createRoom`: rooms exist from the first join. Room-level settings s
 
 ## Hosted services
 
-Every service is billed from the project's balance at the rates in the dashboard. Errors are `CloudApiError`s, as for tokens; `id` names the job or request when the cloud returns one.
+Every service is billed from the project's balance at the rates in the dashboard. Errors are `CloudApiError`s, as for tokens; `id` names the job or request when the cloud returns one. A 422 `backend_rejected` carries `detail`, what the backend said about the input, such as an SSML error: `{ code, message, position }`.
 
 Calls that upload or start work take an `idempotencyKey`. Reuse the same key to retry the same call: the cloud returns the first result instead of charging twice. File jobs accept 1-128 printable ASCII characters; translation, vision and moderation accept 1-128 letters, digits, underscores or hyphens. The SDK checks the key before sending and never retries by itself.
 

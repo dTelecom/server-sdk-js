@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.2.1 (2026-11-16)
+
+- `CloudApiError.detail`: what the backend said about a rejected input, with 422 `backend_rejected`. For SSML, `{ code, message, position }`, e.g. `UNSUPPORTED_TAG` at position 13. Before, the SDK dropped it and only `code` was seen.
+
 ## 4.2.0 (2026-11-16)
 
 - `SpeechSession.streamUrl`: the WebSocket address of a live STT or TTS session (`serverUrl` + `/v1/stream`), from the cloud's new `stream_url`. Built from `serverUrl` when an older cloud does not send it.

@@ -10,13 +10,26 @@ export class CloudApiError extends Error {
   /** Id of the job or request the error belongs to, when the cloud names one. */
   readonly id?: string;
 
-  constructor(status: number, code: string, retryAfter?: number, id?: string) {
+  /**
+   * What the speech or AI backend said about the input, with `backend_rejected` (422); for SSML,
+   * `{ code, message, position }`, e.g. `{ code: 'UNSUPPORTED_TAG', message: 'Unsupported element: emphasis', position: 13 }`.
+   */
+  readonly detail?: Record<string, unknown>;
+
+  constructor(
+    status: number,
+    code: string,
+    retryAfter?: number,
+    id?: string,
+    detail?: Record<string, unknown>,
+  ) {
     super(`dTelecom Cloud: ${status} ${code}`);
     this.name = 'CloudApiError';
     this.status = status;
     this.code = code;
     this.retryAfter = retryAfter;
     this.id = id;
+    this.detail = detail;
   }
 }
 
@@ -74,10 +87,19 @@ export class CloudHttp {
 async function apiError(res: Response): Promise<CloudApiError> {
   let code = `http_${res.status}`;
   let id: string | undefined;
+  let detail: Record<string, unknown> | undefined;
   try {
     const parsed = JSON.parse(await res.text());
     if (parsed && typeof parsed.error === 'string') code = parsed.error;
     if (parsed && typeof parsed.id === 'string') id = parsed.id;
+    if (
+      parsed &&
+      parsed.detail &&
+      typeof parsed.detail === 'object' &&
+      !Array.isArray(parsed.detail)
+    ) {
+      detail = parsed.detail;
+    }
   } catch {
     // not JSON: keep the status code
   }
@@ -87,6 +109,7 @@ async function apiError(res: Response): Promise<CloudApiError> {
     code,
     Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined,
     id,
+    detail,
   );
 }
 

@@ -383,6 +383,30 @@ describe('CloudClient requests', () => {
     }
   });
 
+  it('keeps the backend detail of a rejected input', async () => {
+    const detail = {
+      code: 'UNSUPPORTED_TAG',
+      message: 'Unsupported element: emphasis',
+      position: 13,
+    };
+    const cloud = await startCloud(() => ({
+      status: 422,
+      body: { error: 'backend_rejected', detail },
+    }));
+    try {
+      await expect(
+        cloud.client.wav.create({
+          text: '<speak>Hello <emphasis>world</emphasis></speak>',
+          inputFormat: 'ssml',
+          idempotencyKey: 'k',
+        }),
+      ).rejects.toMatchObject({ status: 422, code: 'backend_rejected', detail });
+      await expect(cloud.client.vision.get('v1')).rejects.toMatchObject({ detail });
+    } finally {
+      cloud.close();
+    }
+  });
+
   it('maps errors with the code, Retry-After and the id', async () => {
     const cloud = await startCloud((req) =>
       req.path === '/v1/transcriptions/jobs'
