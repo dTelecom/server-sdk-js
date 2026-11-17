@@ -180,7 +180,7 @@ export class VisionService {
 
 export interface ModerationStreamOptions {
   /**
-   * Opens the WebSocket. Defaults to the global `WebSocket` (Node 22+ and browsers); on older
+   * Opens the WebSocket. Defaults to the global `WebSocket` (Node 22+); on older
    * Node pass one, e.g. `(url) => new (require('ws'))(url)`.
    */
   socketFactory?: ModerationSocketFactory;
@@ -211,8 +211,8 @@ export class ModerationService {
   }
 
   /**
-   * A ticket for one moderation WebSocket, valid for 10 minutes. It holds no API secret, so a
-   * server can hand it to a browser, which connects with `ModerationStream.connect`.
+   * A ticket for one moderation WebSocket, valid for 10 minutes; `stream()` gets one and
+   * connects. Moderation runs on your backend, which acts on the results.
    */
   async streamTicket(): Promise<ModerationStreamTicket> {
     const r = await this.http.json('POST', '/v1/moderation/streams');

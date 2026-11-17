@@ -22,7 +22,7 @@ export function toModeration(r: Raw): Moderation {
   return camelize(r);
 }
 
-/** The parts of a WebSocket the stream uses: the browser's, Node 22's global one, or `ws`. */
+/** The parts of a WebSocket the stream uses: Node 22's global one, or one from `ws`. */
 export interface ModerationSocket {
   send(data: string | ArrayBuffer): void;
   close(): void;

@@ -179,7 +179,7 @@ const frame = await cloud.moderation.videoFrame({ image: jpeg, idempotencyKey: '
 console.log(audio.result?.decision, audio.result?.transcript, frame.result?.imageScreening);
 ```
 
-For a steady flow, use a WebSocket. Items go one at a time and each is billed like the HTTP call. Node 22 and browsers have a global `WebSocket`; on older Node pass a factory, such as one from the `ws` package.
+For a steady flow, use a WebSocket from your backend. Items go one at a time and each is billed like the HTTP call. Node 22 has a global `WebSocket`; on older Node pass a factory, such as one from the `ws` package.
 
 ```typescript
 const stream = await cloud.moderation.stream(); // or stream({ socketFactory: (url) => new WebSocket(url) })
@@ -188,7 +188,7 @@ const frameResult = await stream.sendVideoFrame('frame-8', jpeg);
 stream.close();
 ```
 
-A ticket holds no API secret, so your backend can hand `await cloud.moderation.streamTicket()` to a browser, which connects with `ModerationStream.connect(ticket)`.
+Moderation runs on your backend: it gets the media (a bot subscribed to the room's tracks, or your own upload), sends it here, and acts on `flag` with its own code, such as `roomService().mutePublishedTrack` or `removeParticipant`. Results that only reach a user's device can be ignored there.
 
 ## Webhooks
 

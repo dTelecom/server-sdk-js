@@ -234,7 +234,7 @@ export interface ModerationResult {
 
 export type Moderation = CloudRequest<'moderation-audio' | 'moderation-video', ModerationResult>;
 
-/** A ticket for one moderation WebSocket. It holds no API secret, so it can go to a browser. */
+/** A ticket for one moderation WebSocket, opened by your backend with `ModerationStream.connect`. */
 export interface ModerationStreamTicket {
   token: string;
   /** `wss://` URL of the stream. */
