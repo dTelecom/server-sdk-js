@@ -9,6 +9,9 @@ const ed25519SpkiPrefix = Buffer.from([
   0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
 ]);
 
+/** Clock difference allowed between the token's issuer and this server, for nbf and exp. */
+const clockToleranceMs = 60 * 1000;
+
 /** Verifies EdDSA tokens issued by a base58 Ed25519 public key, such as a node's key. */
 export class TokenVerifier {
   private readonly verifyJwt: (token: string) => any;
@@ -26,6 +29,8 @@ export class TokenVerifier {
       algorithms: ['EdDSA'],
       key: publicKeyPem as string,
       allowedIss: publicKey,
+      // A node's clock can run a little ahead of or behind this server's.
+      clockTolerance: clockToleranceMs,
     });
   }
 

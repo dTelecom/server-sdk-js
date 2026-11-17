@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.2.2 (2026-11-17)
+
+- `RoomServiceClient` sends each call where the node can act on it. Calls about a participant (`removeParticipant`, `mutePublishedTrack`, `updateParticipant`, `updateSubscriptions`, `getParticipant`) go to the node hosting that participant; room-wide calls (`updateRoomMetadata`, `sendData`, `deleteRoom`) go to one hosting node and move to the next when a node is unreachable or answers 5xx; `listParticipants` asks every hosting node. Before, every call went to every hosting node, so in a room spread over two nodes a data message arrived twice.
+- `updateSubscriptions` sends the tracks grouped by their publisher. Nodes released before 2026-11-17 answered the plain track list with 500 "operation cannot be completed".
+- A room nobody has joined yet is no longer cached as having no nodes, so calls right after the first participant joins reach it.
+- `WebhookReceiver` allows one minute of clock difference with the node for `nbf` and `exp`. A node clock a second ahead made deliveries fail as not valid yet.
+- `updateParticipant` and `updateRoomMetadata` return the participant and the room from nodes released on 2026-11-17 or later; older nodes answer with an empty object although the change is applied.
+
 ## 4.2.1 (2026-11-16)
 
 - `CloudApiError.detail`: what the backend said about a rejected input, with 422 `backend_rejected`. For SSML, `{ code, message, position }`, e.g. `UNSUPPORTED_TAG` at position 13. Before, the SDK dropped it and only `code` was seen.

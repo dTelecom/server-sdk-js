@@ -28,13 +28,17 @@ function sign(
   iss: string,
   body: string,
   sha?: string,
+  times: { nbf?: number; exp?: number } = {},
 ): string {
   const signer = createSigner({
     algorithm: 'EdDSA',
     key: keys.privateKey.export({ type: 'pkcs8', format: 'pem' }) as string,
     iss,
   });
-  return signer({ sha256: sha ?? crypto.createHash('sha256').update(body).digest('base64') });
+  return signer({
+    sha256: sha ?? crypto.createHash('sha256').update(body).digest('base64'),
+    ...times,
+  });
 }
 
 describe('WebhookReceiver', () => {
@@ -49,6 +53,24 @@ describe('WebhookReceiver', () => {
     expect(event.room?.key).toBe('room-key');
     expect(event.participant?.identity).toBe('alice');
     expect(event.participant?.rttMs).toBe(15);
+  });
+
+  it('allows a minute of clock difference with the node', async () => {
+    const now = Math.floor(Date.now() / 1000);
+    // A node clock slightly ahead: nbf a moment in the future.
+    const ahead = await receiver.receive(
+      body,
+      sign(nodeKeys, nodeKey, body, undefined, { nbf: now + 2 }),
+    );
+    expect(ahead.event).toBe('participant_joined');
+    const justExpired = await receiver.receive(
+      body,
+      sign(nodeKeys, nodeKey, body, undefined, { exp: now - 5 }),
+    );
+    expect(justExpired.event).toBe('participant_joined');
+    await expect(
+      receiver.receive(body, sign(nodeKeys, nodeKey, body, undefined, { exp: now - 120 })),
+    ).rejects.toThrow();
   });
 
   it('accepts a Bearer prefix', async () => {

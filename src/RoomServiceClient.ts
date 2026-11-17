@@ -62,8 +62,10 @@ function toNodeError(apiUrl: string, err: unknown): NodeApiError {
 
 /**
  * Room administration through the nodes' Twirp API, authorised with admin tokens from the
- * cloud. A room's participants can sit on more than one node, so every call goes to each node
- * hosting the room; a call succeeds when at least one node accepts it.
+ * cloud. The admin token lists the nodes hosting the room's participants. A node answers reads
+ * from its own participants only, and applies a change to a participant only when it hosts that
+ * participant, so calls about a participant go to its node, room-wide calls to one hosting node,
+ * and `listParticipants` to all of them.
  */
 export class RoomServiceClient {
   private readonly cloud: CloudClient;
@@ -74,28 +76,29 @@ export class RoomServiceClient {
     this.cloud = cloud;
   }
 
-  /** Ends the room on every node hosting it. A room nobody joined is already gone. */
+  /** Ends the room. A room nobody joined is already gone. */
   async deleteRoom(room: string): Promise<void> {
     const nodes = await this.nodes(room);
     if (nodes.apiUrls.length === 0) return;
-    await this.onEachNode(nodes, 'DeleteRoom', DeleteRoomRequest.toJSON({ room }));
+    await this.onAnyNode(nodes, 'DeleteRoom', DeleteRoomRequest.toJSON({ room }));
   }
 
   /** Lists the joined participants across the room's nodes. */
   async listParticipants(room: string): Promise<ParticipantInfo[]> {
     const nodes = await this.nodes(room);
     if (nodes.apiUrls.length === 0) return [];
-    const results = await this.onEachNode<any>(
-      nodes,
-      'ListParticipants',
-      ListParticipantsRequest.toJSON({ room }),
-    );
-    return results.flatMap((data) => ListParticipantsResponse.fromJSON(data).participants ?? []);
+    const lists = await this.participantsByNode(nodes, room);
+    return lists.flatMap((l) => l.participants);
   }
 
+  /**
+   * Sets the room's metadata and returns the room. Nodes released before 2026-11-17 answer with
+   * an empty `Room`, although the metadata is set.
+   */
   async updateRoomMetadata(room: string, metadata: string): Promise<Room> {
-    const data = await this.onRoom(
-      room,
+    const nodes = await this.liveNodes(room);
+    const data = await this.onAnyNode(
+      nodes,
       'UpdateRoomMetadata',
       UpdateRoomMetadataRequest.toJSON({ room, metadata }),
     );
@@ -103,8 +106,9 @@ export class RoomServiceClient {
   }
 
   async getParticipant(room: string, identity: string): Promise<ParticipantInfo> {
-    const data = await this.onRoom(
+    const data = await this.onParticipantNode(
       room,
+      identity,
       'GetParticipant',
       RoomParticipantIdentity.toJSON({ room, identity }),
     );
@@ -113,8 +117,9 @@ export class RoomServiceClient {
 
   /** Disconnects a participant. They can join again with a valid token. */
   async removeParticipant(room: string, identity: string): Promise<void> {
-    await this.onRoom(
+    await this.onParticipantNode(
       room,
+      identity,
       'RemoveParticipant',
       RoomParticipantIdentity.toJSON({ room, identity }),
     );
@@ -126,14 +131,20 @@ export class RoomServiceClient {
     trackSid: string,
     muted: boolean,
   ): Promise<TrackInfo> {
-    const data = await this.onRoom(
+    const data = await this.onParticipantNode(
       room,
+      identity,
       'MutePublishedTrack',
       MuteRoomTrackRequest.toJSON({ room, identity, trackSid, muted }),
     );
     return MuteRoomTrackResponse.fromJSON(data).track!;
   }
 
+  /**
+   * Changes a participant's metadata, permissions or name and returns the participant. Nodes
+   * released before 2026-11-17 answer with an empty `ParticipantInfo`, although the change is
+   * applied.
+   */
   async updateParticipant(
     room: string,
     identity: string,
@@ -148,30 +159,65 @@ export class RoomServiceClient {
       permission,
       name: name || '',
     };
-    const data = await this.onRoom(room, 'UpdateParticipant', UpdateParticipantRequest.toJSON(req));
+    const data = await this.onParticipantNode(
+      room,
+      identity,
+      'UpdateParticipant',
+      UpdateParticipantRequest.toJSON(req),
+    );
     return ParticipantInfo.fromJSON(data);
   }
 
+  /**
+   * Subscribes a participant to tracks, or unsubscribes it. Tracks are sent grouped by their
+   * publisher, which every node release accepts.
+   */
   async updateSubscriptions(
     room: string,
     identity: string,
     trackSids: string[],
     subscribe: boolean,
   ): Promise<void> {
-    await this.onRoom(
-      room,
+    const nodes = await this.liveNodes(room);
+    const lists = await this.participantsByNode(nodes, room);
+    const owner = new Map<string, string>();
+    let subscriberNode = nodes.apiUrls[0];
+    lists.forEach((l) =>
+      l.participants.forEach((p) => {
+        if (p.identity === identity) subscriberNode = l.apiUrl;
+        p.tracks.forEach((t) => owner.set(t.sid, p.sid));
+      }),
+    );
+    const grouped = new Map<string, string[]>();
+    trackSids.forEach((sid) => {
+      const participantSid = owner.get(sid);
+      if (!participantSid) {
+        throw new Error(`track ${sid} is not published in room ${JSON.stringify(room)}`);
+      }
+      grouped.set(participantSid, [...(grouped.get(participantSid) ?? []), sid]);
+    });
+    await this.call(
+      subscriberNode,
+      nodes.token,
       'UpdateSubscriptions',
       UpdateSubscriptionsRequest.toJSON({
         room,
         identity,
-        trackSids,
+        trackSids: [],
         subscribe,
-        participantTracks: [],
+        participantTracks: [...grouped].map(([participantSid, sids]) => ({
+          participantSid,
+          trackSids: sids,
+        })),
       }),
     );
   }
 
-  /** Sends a data message to the room, or to `destinationSids` only. */
+  /**
+   * Sends a data message to the room, or to `destinationSids` only. The node that takes it
+   * delivers it to its participants and relays it to the room's other nodes, so it goes to one
+   * hosting node.
+   */
   async sendData(
     room: string,
     data: Uint8Array,
@@ -180,8 +226,9 @@ export class RoomServiceClient {
   ): Promise<void> {
     const destinationSids = Array.isArray(options) ? options : options.destinationSids;
     const topic = Array.isArray(options) ? undefined : options.topic;
-    await this.onRoom(
-      room,
+    const nodes = await this.liveNodes(room);
+    await this.onAnyNode(
+      nodes,
       'SendData',
       SendDataRequest.toJSON({ room, data, kind, destinationSids: destinationSids ?? [], topic }),
     );
@@ -193,42 +240,89 @@ export class RoomServiceClient {
       return cached;
     }
     const fresh = await this.cloud.adminToken(room);
-    this.admin.set(room, fresh);
+    // A room nobody has joined yet has no nodes; ask again next time instead of caching that.
+    if (fresh.apiUrls.length > 0) this.admin.set(room, fresh);
     return fresh;
   }
 
-  /** Calls every node; returns the successes, or throws the first error when none succeeded. */
-  private async onEachNode<T>(nodes: AdminToken, method: string, body: unknown): Promise<T[]> {
-    const headers = { Authorization: `Bearer ${nodes.token}` };
-    const settled = await Promise.allSettled(
-      nodes.apiUrls.map((apiUrl) =>
-        new TwirpRpc(apiUrl, livekitPackage).request<T>(svc, method, body, headers).catch((err) => {
-          throw toNodeError(apiUrl, err);
-        }),
-      ),
-    );
-    const ok: T[] = [];
-    let firstError: unknown;
-    settled.forEach((r) => {
-      if (r.status === 'fulfilled') {
-        ok.push(r.value as T);
-      } else if (firstError === undefined) {
-        firstError = r.reason;
-      }
-    });
-    if (ok.length === 0) {
-      throw firstError instanceof Error ? firstError : new Error(String(firstError ?? 'no nodes'));
-    }
-    return ok;
-  }
-
-  /** Runs a call that must reach a live room and returns the first node's answer. */
-  private async onRoom(room: string, method: string, body: unknown): Promise<any> {
+  /** `nodes` for calls that need a joined participant. */
+  private async liveNodes(room: string): Promise<AdminToken> {
     const nodes = await this.nodes(room);
     if (nodes.apiUrls.length === 0) {
       throw new RoomNotLiveError(room);
     }
-    const [first] = await this.onEachNode<any>(nodes, method, body);
-    return first;
+    return nodes;
+  }
+
+  /** Asks every hosting node for its participants; throws the first error when none answered. */
+  private async participantsByNode(
+    nodes: AdminToken,
+    room: string,
+  ): Promise<{ apiUrl: string; participants: ParticipantInfo[] }[]> {
+    const settled = await Promise.allSettled(
+      nodes.apiUrls.map(async (apiUrl) => {
+        const data = await this.call(
+          apiUrl,
+          nodes.token,
+          'ListParticipants',
+          ListParticipantsRequest.toJSON({ room }),
+        );
+        return { apiUrl, participants: ListParticipantsResponse.fromJSON(data).participants ?? [] };
+      }),
+    );
+    const lists = settled.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
+    if (lists.length === 0) {
+      throw (settled[0] as PromiseRejectedResult).reason;
+    }
+    return lists;
+  }
+
+  /**
+   * Runs a call on the node hosting the participant. With several nodes it finds that node from
+   * their participant lists; when none lists the participant, the first node answers.
+   */
+  private async onParticipantNode(
+    room: string,
+    identity: string,
+    method: string,
+    body: unknown,
+  ): Promise<any> {
+    const nodes = await this.liveNodes(room);
+    let target = nodes.apiUrls[0];
+    if (nodes.apiUrls.length > 1) {
+      const lists = await this.participantsByNode(nodes, room);
+      const found = lists.find((l) => l.participants.some((p) => p.identity === identity));
+      if (found) target = found.apiUrl;
+    }
+    return this.call(target, nodes.token, method, body);
+  }
+
+  /**
+   * Runs a room-wide call on the first hosting node that answers. A client error (4xx) is final;
+   * an unreachable node or a server error moves on to the next node.
+   */
+  private async onAnyNode(nodes: AdminToken, method: string, body: unknown): Promise<any> {
+    let firstError: unknown;
+    for (const apiUrl of nodes.apiUrls) {
+      try {
+        return await this.call(apiUrl, nodes.token, method, body);
+      } catch (err) {
+        if (err instanceof NodeApiError && err.status && err.status >= 400 && err.status < 500) {
+          throw err;
+        }
+        if (firstError === undefined) firstError = err;
+      }
+    }
+    throw firstError;
+  }
+
+  private async call(apiUrl: string, token: string, method: string, body: unknown): Promise<any> {
+    try {
+      return await new TwirpRpc(apiUrl, livekitPackage).request<any>(svc, method, body, {
+        Authorization: `Bearer ${token}`,
+      });
+    } catch (err) {
+      throw toNodeError(apiUrl, err);
+    }
   }
 }
