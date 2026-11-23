@@ -2,6 +2,8 @@
 
 `@dtelecom/server-sdk-js` 4.x talks to [dTelecom Cloud](https://dtelecom.org) from your backend: it issues participant tokens, extends sessions, administers rooms on the nodes and verifies webhooks. From 4.1 it also calls the hosted AI services: live speech-to-text and text-to-speech, file transcription, WAV synthesis, translation, vision and content moderation.
 
+**Documentation:** [docs.dtelecom.org](https://docs.dtelecom.org), with the full [server SDK reference](https://docs.dtelecom.org/reference/server-sdk/) and the [quickstart](https://docs.dtelecom.org/quickstart/).
+
 Version 4 is for projects created in dTelecom Cloud, which have an API key and secret. If your project holds a Solana keypair and signs tokens itself, stay on 3.x (branch [`dtelecom-db`](https://github.com/dTelecom/server-sdk-js/tree/dtelecom-db)).
 
 ## Installation
