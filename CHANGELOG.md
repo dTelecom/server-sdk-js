@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.2.4 (2026-11-23)
+
+- Docs only: the README links [docs.dtelecom.org](https://docs.dtelecom.org). Code is the same as 4.2.3.
+
 ## 4.2.3 (2026-11-17)
 
 - Docs only: moderation runs on your backend. The README and the `streamTicket` / `ModerationStream` comments no longer suggest handing the ticket to a browser: the backend gets the media (a bot subscribed to the room's tracks, or its own upload), sends it for moderation and acts on `flag` with its own code.
