@@ -283,13 +283,10 @@ export class CloudClient {
       ws_url: string;
       region?: string;
       new_expires_at: string;
-    }>(
-      '/v1/webrtc/token/extend',
-      {
-        session_id: sessionId,
-        additional_minutes: durationToMinutes(additional, 0),
-      },
-    );
+    }>('/v1/webrtc/token/extend', {
+      session_id: sessionId,
+      additional_minutes: durationToMinutes(additional, 0),
+    });
     return {
       token: res.token,
       wsUrl: res.ws_url,
@@ -313,7 +310,10 @@ export class CloudClient {
    */
   async getSession(sessionId: string): Promise<SessionCharge> {
     return sessionCharge(
-      await this.http.json<RawSessionCharge>('GET', `/v1/sessions/${encodeURIComponent(sessionId)}`),
+      await this.http.json<RawSessionCharge>(
+        'GET',
+        `/v1/sessions/${encodeURIComponent(sessionId)}`,
+      ),
     );
   }
 

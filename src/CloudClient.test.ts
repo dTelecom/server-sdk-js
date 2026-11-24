@@ -92,7 +92,8 @@ describe('CloudClient', () => {
           body: { sessions: [stt], total_microcredits: '4000', total_usd: '0.004' },
         };
       }
-      if (path === '/v1/sessions/none') return { status: 404, body: { error: 'session_not_found' } };
+      if (path === '/v1/sessions/none')
+        return { status: 404, body: { error: 'session_not_found' } };
       return { status: 404, body: { error: 'not_found' } };
     });
     try {
