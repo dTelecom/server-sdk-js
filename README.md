@@ -33,7 +33,7 @@ Each option falls back to an environment variable: `DTELECOM_API_KEY`, `DTELECOM
 Your backend creates a token for each participant and hands `token` and `wsUrl` to the client SDK. Rooms are created when the first participant joins.
 
 ```typescript
-const { token, wsUrl, sessionId, expiresAt } = await cloud.createToken({
+const { token, wsUrl, sessionId, region, expiresAt } = await cloud.createToken({
   room: 'name-of-room',
   identity: 'user-name',
   name: 'Display name', // optional
@@ -71,6 +71,17 @@ A participant is removed from the room a minute after its token expires. Extend 
 
 ```typescript
 const { token, expiresAt } = await cloud.extendToken(sessionId, '30m');
+```
+
+### Session charges
+
+Read what a session was charged, or every session of a room: its participants and the service sessions linked to them (speech, vision, moderation, translation). Any key of the project can read them. A session is charged when it ends, so check `final`.
+
+```typescript
+const session = await cloud.getSession(sessionId); // { service, status, chargedUsd, final, ... }
+
+// A room name can be reused: pass since to read one call.
+const { sessions, totalUsd } = await cloud.listSessions('name-of-room', { since: callStartedAt });
 ```
 
 ## Managing rooms

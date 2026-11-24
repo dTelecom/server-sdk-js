@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.3.0 (2026-11-24)
+
+- `createToken` and `extendToken` return `region`: where the chosen node is (its city, else its country; empty when unknown).
+- `getSession(sessionId)` reads a session of the project and its charge (`chargedMicrocredits`, `chargedUsd`, `final`, `coveredByAddon`); `listSessions(room, { since, limit })` lists a room's participant sessions and the service sessions linked to them, newest first, with totals. New types `SessionCharge`, `SessionCharges`, `ListSessionsOptions`.
+
 ## 4.2.4 (2026-11-23)
 
 - Docs only: the README links [docs.dtelecom.org](https://docs.dtelecom.org). Code is the same as 4.2.3.
