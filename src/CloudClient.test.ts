@@ -68,6 +68,68 @@ describe('CloudClient', () => {
     delete process.env.DTELECOM_CLOUD_URL;
   });
 
+  it('reads a session and lists a room with charges', async () => {
+    const stt = {
+      session_id: 'stt-1',
+      service: 'stt',
+      status: 'completed',
+      room_name: 'call',
+      identity: 'alice',
+      webrtc_session_id: 'sess-1',
+      created_at: '2030-01-01T00:00:05Z',
+      started_at: '2030-01-01T00:00:06Z',
+      ended_at: '2030-01-01T00:01:06Z',
+      charged_microcredits: '4000',
+      charged_usd: '0.004',
+      final: true,
+      covered_by_addon: false,
+    };
+    const cloud = await startCloud((path) => {
+      if (path === '/v1/sessions/stt-1') return { status: 200, body: stt };
+      if (path.startsWith('/v1/sessions?')) {
+        return {
+          status: 200,
+          body: { sessions: [stt], total_microcredits: '4000', total_usd: '0.004' },
+        };
+      }
+      if (path === '/v1/sessions/none') return { status: 404, body: { error: 'session_not_found' } };
+      return { status: 404, body: { error: 'not_found' } };
+    });
+    try {
+      const client = new CloudClient({ apiKey: 'k', apiSecret: 's', baseUrl: cloud.url });
+      const expected = {
+        sessionId: 'stt-1',
+        service: 'stt',
+        status: 'completed',
+        roomName: 'call',
+        identity: 'alice',
+        webrtcSessionId: 'sess-1',
+        createdAt: new Date('2030-01-01T00:00:05Z'),
+        startedAt: new Date('2030-01-01T00:00:06Z'),
+        endedAt: new Date('2030-01-01T00:01:06Z'),
+        chargedMicrocredits: '4000',
+        chargedUsd: '0.004',
+        final: true,
+        coveredByAddon: false,
+      };
+      expect(await client.getSession('stt-1')).toEqual(expected);
+      const list = await client.listSessions('my call', {
+        since: new Date('2030-01-01T00:00:00Z'),
+        limit: 10,
+      });
+      expect(list).toEqual({ sessions: [expected], totalMicrocredits: '4000', totalUsd: '0.004' });
+      expect(cloud.requests[1].path).toBe(
+        '/v1/sessions?room=my+call&since=2030-01-01T00%3A00%3A00.000Z&limit=10',
+      );
+      await expect(client.getSession('none')).rejects.toMatchObject({
+        status: 404,
+        code: 'session_not_found',
+      });
+    } finally {
+      cloud.close();
+    }
+  });
+
   it('creates, extends and mints admin tokens with the hosted API shapes', async () => {
     const cloud = await startCloud((path) => {
       if (path === '/v1/webrtc/token') {
@@ -77,6 +139,7 @@ describe('CloudClient', () => {
             session_id: 'sess-1',
             token: 'tok',
             ws_url: 'wss://node.example',
+            region: 'Frankfurt',
             expires_at: '2030-01-01T00:00:00Z',
           },
         };
@@ -87,6 +150,7 @@ describe('CloudClient', () => {
           body: {
             token: 'tok2',
             ws_url: 'wss://node.example',
+            region: 'Frankfurt',
             new_expires_at: '2030-01-02T00:00:00Z',
           },
         };
@@ -120,6 +184,7 @@ describe('CloudClient', () => {
         token: 'tok',
         wsUrl: 'wss://node.example',
         sessionId: 'sess-1',
+        region: 'Frankfurt',
         expiresAt: new Date('2030-01-01T00:00:00Z'),
       });
       expect(cloud.requests[0].authorization).toBe('Bearer key:secret');
@@ -146,6 +211,7 @@ describe('CloudClient', () => {
       expect(extended).toEqual({
         token: 'tok2',
         wsUrl: 'wss://node.example',
+        region: 'Frankfurt',
         expiresAt: new Date('2030-01-02T00:00:00Z'),
       });
       expect(cloud.requests[2].body).toEqual({ session_id: 'sess-1', additional_minutes: 15 });

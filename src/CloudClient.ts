@@ -69,15 +69,100 @@ export interface ParticipantToken {
   token: string;
   /** Node URL (`wss://...`) for the client SDK. */
   wsUrl: string;
-  /** Session id for `extendToken`. */
+  /** Session id for `extendToken` and `getSession`. */
   sessionId: string;
+  /** Where the chosen node is: its city, else its country; empty when unknown. */
+  region: string;
   expiresAt: Date;
 }
 
 export interface ExtendedToken {
   token: string;
   wsUrl: string;
+  /** The session's node location, as in `createToken`. */
+  region: string;
   expiresAt: Date;
+}
+
+/** A session of the project and what it was charged. */
+export interface SessionCharge {
+  sessionId: string;
+  /** `webrtc` for a participant, else the service: `stt`, `tts`, `file-stt`, `vision`, ... */
+  service: string;
+  status: 'pending' | 'active' | 'completed' | 'expired' | 'failed' | 'rejected';
+  /** The participant's room and identity; for a service session, those of its linked participant. */
+  roomName?: string;
+  identity?: string;
+  /** The participant session a service session was linked to. */
+  webrtcSessionId?: string;
+  /** Node location of a participant session. */
+  region?: string;
+  createdAt: Date;
+  startedAt?: Date;
+  endedAt?: Date;
+  /** TTS characters used. */
+  characters?: number;
+  /** Charge in microcredits (1,000,000 per dollar), as a decimal string. */
+  chargedMicrocredits: string;
+  /** The same charge in dollars, e.g. `"0.00127"`. */
+  chargedUsd: string;
+  /** True once the session ended or was rejected; until then the charge is 0. */
+  final: boolean;
+  /** True when the bandwidth add-on covered this participant session. */
+  coveredByAddon: boolean;
+}
+
+export interface ListSessionsOptions {
+  /** Only sessions created at or after this time; a room name can be reused. */
+  since?: Date;
+  /** At most this many sessions, default 100, maximum 500. */
+  limit?: number;
+}
+
+export interface SessionCharges {
+  /** Newest first. */
+  sessions: SessionCharge[];
+  totalMicrocredits: string;
+  totalUsd: string;
+}
+
+interface RawSessionCharge {
+  session_id: string;
+  service: string;
+  status: SessionCharge['status'];
+  room_name?: string;
+  identity?: string;
+  webrtc_session_id?: string;
+  region?: string;
+  created_at: string;
+  started_at?: string;
+  ended_at?: string;
+  characters?: number;
+  charged_microcredits: string;
+  charged_usd: string;
+  final: boolean;
+  covered_by_addon: boolean;
+}
+
+function sessionCharge(raw: RawSessionCharge): SessionCharge {
+  const out: SessionCharge = {
+    sessionId: raw.session_id,
+    service: raw.service,
+    status: raw.status,
+    createdAt: new Date(raw.created_at),
+    chargedMicrocredits: raw.charged_microcredits,
+    chargedUsd: raw.charged_usd,
+    final: raw.final,
+    coveredByAddon: raw.covered_by_addon,
+  };
+  if (raw.room_name) out.roomName = raw.room_name;
+  if (raw.identity) out.identity = raw.identity;
+  if (raw.webrtc_session_id) out.webrtcSessionId = raw.webrtc_session_id;
+  if (raw.region) out.region = raw.region;
+  if (raw.started_at) out.startedAt = new Date(raw.started_at);
+  if (raw.ended_at) out.endedAt = new Date(raw.ended_at);
+  if (raw.characters) out.characters = raw.characters;
+  return out;
 }
 
 export interface AdminToken {
@@ -169,12 +254,14 @@ export class CloudClient {
       session_id: string;
       token: string;
       ws_url: string;
+      region?: string;
       expires_at: string;
     }>('/v1/webrtc/token', body);
     return {
       token: res.token,
       wsUrl: res.ws_url,
       sessionId: res.session_id,
+      region: res.region ?? '',
       expiresAt: new Date(res.expires_at),
     };
   }
@@ -191,14 +278,24 @@ export class CloudClient {
    *   Rounded up to whole minutes, at most 24 hours per call.
    */
   async extendToken(sessionId: string, additional: number | string): Promise<ExtendedToken> {
-    const res = await this.post<{ token: string; ws_url: string; new_expires_at: string }>(
+    const res = await this.post<{
+      token: string;
+      ws_url: string;
+      region?: string;
+      new_expires_at: string;
+    }>(
       '/v1/webrtc/token/extend',
       {
         session_id: sessionId,
         additional_minutes: durationToMinutes(additional, 0),
       },
     );
-    return { token: res.token, wsUrl: res.ws_url, expiresAt: new Date(res.new_expires_at) };
+    return {
+      token: res.token,
+      wsUrl: res.ws_url,
+      region: res.region ?? '',
+      expiresAt: new Date(res.new_expires_at),
+    };
   }
 
   /** Mints a 10-minute room admin token and lists the nodes hosting the room. */
@@ -208,6 +305,36 @@ export class CloudClient {
       { room_name: room },
     );
     return { token: res.token, apiUrls: res.api_urls ?? [], expiresAt: new Date(res.expires_at) };
+  }
+
+  /**
+   * Reads a session of the project (a participant from `createToken`, or a service session)
+   * and what it was charged. Sessions are charged when they end: check `final`.
+   */
+  async getSession(sessionId: string): Promise<SessionCharge> {
+    return sessionCharge(
+      await this.http.json<RawSessionCharge>('GET', `/v1/sessions/${encodeURIComponent(sessionId)}`),
+    );
+  }
+
+  /**
+   * Lists a room's participant sessions and the service sessions linked to them, newest first,
+   * with their charges and the total.
+   */
+  async listSessions(room: string, options: ListSessionsOptions = {}): Promise<SessionCharges> {
+    const query = new URLSearchParams({ room });
+    if (options.since) query.set('since', options.since.toISOString());
+    if (options.limit !== undefined) query.set('limit', String(options.limit));
+    const res = await this.http.json<{
+      sessions: RawSessionCharge[] | null;
+      total_microcredits: string;
+      total_usd: string;
+    }>('GET', `/v1/sessions?${query}`);
+    return {
+      sessions: (res.sessions ?? []).map(sessionCharge),
+      totalMicrocredits: res.total_microcredits,
+      totalUsd: res.total_usd,
+    };
   }
 
   /** Room administration on the nodes, authorised through `adminToken`. */

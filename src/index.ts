@@ -5,6 +5,9 @@ export type {
   TokenGrants,
   ParticipantToken,
   ExtendedToken,
+  SessionCharge,
+  SessionCharges,
+  ListSessionsOptions,
   AdminToken,
 } from './CloudClient.js';
 export type { MediaInput } from './cloud/http.js';
