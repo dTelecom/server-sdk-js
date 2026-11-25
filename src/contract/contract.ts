@@ -1,5 +1,7 @@
-import { Connection, PublicKey } from '@solana/web3.js';
-import type { AccountInfo } from '@solana/web3.js';
+import { address, getAddressCodec, getProgramDerivedAddress } from '@solana/addresses';
+import type { Address } from '@solana/addresses';
+import { createSolanaRpc } from '@solana/rpc';
+import type { Base58EncodedBytes } from '@solana/rpc-types';
 
 const DEFAULT_CONTRACT_ADDRESS = 'E2FcHsC9STeB6FEtxBKGAwMTX7cbfYMyjSHKs4QbBAmh';
 const DEFAULT_NETWORK_HOST = 'https://api.mainnet-beta.solana.com';
@@ -18,9 +20,9 @@ const NODE_ENTRY_SIZE =
   ONLINE_STATUS_SIZE +
   ACTIVE_STATUS_SIZE;
 
-interface NodeEntry {
-  parent: PublicKey;
-  registered: PublicKey;
+interface NodeEntry<Key = Address> {
+  parent: Key;
+  registered: Key;
   domain: string;
   online: number;
   active: boolean;
@@ -37,17 +39,14 @@ export interface IAllNodeResponseItem {
   key: string;
 }
 
-interface ProgramAccount {
-  pubkey: PublicKey;
-  account: AccountInfo<Buffer>;
-}
+const addressCodec = getAddressCodec();
 
 class RegistryClient {
-  private connection: Connection;
+  private readonly connection: ReturnType<typeof createSolanaRpc>;
 
-  private programId: PublicKey;
+  private readonly programId: Address;
 
-  private registryAuthority: PublicKey;
+  private readonly registryAuthority: Address;
 
   constructor(config?: RegistryConfig) {
     const contractAddress =
@@ -59,23 +58,16 @@ class RegistryClient {
       process.env.SOLANA_REGISTRY_AUTHORITY ||
       DEFAULT_REGISTRY_AUTHORITY;
 
-    this.connection = new Connection(networkHost);
-    this.programId = new PublicKey(contractAddress);
-    this.registryAuthority = new PublicKey(registryAuthority);
+    this.connection = createSolanaRpc(networkHost);
+    this.programId = address(contractAddress);
+    this.registryAuthority = address(registryAuthority);
   }
 
-  private async findRegistryPDA(authority: PublicKey, name: string): Promise<[PublicKey, number]> {
-    return PublicKey.findProgramAddress([authority.toBytes(), Buffer.from(name)], this.programId);
-  }
-
-  private async findRegistryEntryPDA(
-    accountToAdd: PublicKey,
-    registry: PublicKey,
-  ): Promise<[PublicKey, number]> {
-    return PublicKey.findProgramAddress(
-      [accountToAdd.toBytes(), registry.toBytes()],
-      this.programId,
-    );
+  private findRegistryPDA() {
+    return getProgramDerivedAddress({
+      programAddress: this.programId,
+      seeds: [addressCodec.encode(this.registryAuthority), 'dtel-nodes'],
+    });
   }
 
   private parseNodeEntry(data: Buffer): NodeEntry {
@@ -83,11 +75,11 @@ class RegistryClient {
     let offset = DISCRIMINATOR_LENGTH;
 
     // Read parent public key
-    const parent = new PublicKey(data.slice(offset, offset + PUBLIC_KEY_LENGTH));
+    const parent = addressCodec.decode(data.subarray(offset, offset + PUBLIC_KEY_LENGTH));
     offset += PUBLIC_KEY_LENGTH;
 
     // Read registered public key
-    const registered = new PublicKey(data.slice(offset, offset + PUBLIC_KEY_LENGTH));
+    const registered = addressCodec.decode(data.subarray(offset, offset + PUBLIC_KEY_LENGTH));
     offset += PUBLIC_KEY_LENGTH;
 
     // Read domain length
@@ -115,36 +107,42 @@ class RegistryClient {
   }
 
   async listNodes(): Promise<NodeEntry[]> {
-    const [registryPDA] = await this.findRegistryPDA(this.registryAuthority, 'dtel-nodes');
-
-    const accounts = await this.connection.getProgramAccounts(this.programId, {
-      filters: [
-        {
-          memcmp: {
-            offset: DISCRIMINATOR_LENGTH,
-            bytes: registryPDA.toBase58(),
+    const [registryPDA] = await this.findRegistryPDA();
+    const accounts = await this.connection
+      .getProgramAccounts(this.programId, {
+        commitment: 'finalized',
+        encoding: 'base64',
+        filters: [
+          {
+            memcmp: {
+              offset: BigInt(DISCRIMINATOR_LENGTH),
+              bytes: registryPDA.toString() as Base58EncodedBytes,
+              encoding: 'base58',
+            },
           },
-        },
-        {
-          dataSize: NODE_ENTRY_SIZE,
-        },
-      ],
-    });
+          { dataSize: BigInt(NODE_ENTRY_SIZE) },
+        ],
+      })
+      .send();
 
-    return accounts.map((account: ProgramAccount) => this.parseNodeEntry(account.account.data));
+    return accounts.map(({ account }) =>
+      this.parseNodeEntry(Buffer.from(account.data[0], 'base64')),
+    );
   }
 
-  async getNodeByAddress(address: string): Promise<NodeEntry | null> {
-    const [registryPDA] = await this.findRegistryPDA(this.registryAuthority, 'dtel-nodes');
-    const accountToCheck = new PublicKey(address);
-    const [entryPDA] = await this.findRegistryEntryPDA(accountToCheck, registryPDA);
-
-    const accountInfo = await this.connection.getAccountInfo(entryPDA);
-    if (!accountInfo || accountInfo.data.length === 0) {
+  async getNodeByAddress(nodeAddress: string): Promise<NodeEntry | null> {
+    const [registryPDA] = await this.findRegistryPDA();
+    const [entryPDA] = await getProgramDerivedAddress({
+      programAddress: this.programId,
+      seeds: [addressCodec.encode(address(nodeAddress)), addressCodec.encode(registryPDA)],
+    });
+    const { value } = await this.connection
+      .getAccountInfo(entryPDA, { commitment: 'finalized', encoding: 'base64' })
+      .send();
+    if (!value || !value.data[0]) {
       return null;
     }
-
-    return this.parseNodeEntry(accountInfo.data);
+    return this.parseNodeEntry(Buffer.from(value.data[0], 'base64'));
   }
 }
 
@@ -157,9 +155,12 @@ function getRegistryClient(config?: RegistryConfig): RegistryClient {
   return registryClient;
 }
 
-export const formatNode = async (node: NodeEntry): Promise<IAllNodeResponseItem> => ({
+// Existing callers may pass a web3.js PublicKey.
+export const formatNode = async (
+  node: NodeEntry<Address | { toBase58(): string }>,
+): Promise<IAllNodeResponseItem> => ({
   domain: node.domain,
-  key: node.registered.toBase58(),
+  key: typeof node.registered === 'string' ? node.registered : node.registered.toBase58(),
 });
 
 export const getAllNode = async (config?: RegistryConfig): Promise<IAllNodeResponseItem[]> => {
@@ -199,12 +200,12 @@ export const getAllNode = async (config?: RegistryConfig): Promise<IAllNodeRespo
 };
 
 export const getNodeByAddress = async (
-  address: string,
+  nodeAddress: string,
   config?: RegistryConfig,
 ): Promise<IAllNodeResponseItem> => {
   try {
     const client = getRegistryClient(config);
-    const node = await client.getNodeByAddress(address);
+    const node = await client.getNodeByAddress(nodeAddress);
     if (!node) {
       throw new Error('Node not found');
     }

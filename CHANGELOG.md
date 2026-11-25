@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Fresh CommonJS and ES module installations work on Node.js 20.18.0 and newer. Webhook registry lookups now use Solana’s HTTP RPC and address libraries.
+
 ## 4.3.0 (2026-11-24)
 
 - `createToken` and `extendToken` return `region`: where the chosen node is (its city, else its country; empty when unknown).

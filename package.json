@@ -41,7 +41,8 @@
     "test": "jest --config jest.config.cjs"
   },
   "dependencies": {
-    "@solana/web3.js": "^1.98.4",
+    "@solana/addresses": "5.5.1",
+    "@solana/rpc": "5.5.1",
     "axios": "^1.13.5",
     "bs58": "^5.0.0",
     "camelcase-keys": "^7.0.0",
@@ -49,6 +50,7 @@
     "protobufjs": "^7.5.0"
   },
   "devDependencies": {
+    "@solana/rpc-types": "5.5.1",
     "@types/bs58": "^4.0.4",
     "@types/jest": "^29.5.12",
     "@typescript-eslint/eslint-plugin": "^4.29.1",
@@ -67,6 +69,6 @@
     "@types/node": "^20.0.0"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20.18.0"
   }
 }

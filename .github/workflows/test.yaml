@@ -28,3 +28,35 @@ jobs:
 
       - name: Test
         run: npm test
+
+      - name: Pack the tested SDK
+        run: npm pack --pack-destination "$RUNNER_TEMP"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: consumer-package
+          path: ${{ runner.temp }}/dtelecom-server-sdk-js-*.tgz
+
+  consumer:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: ['20.18.0', '22.x', '24.x', '26.x']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: consumer-package
+          path: ${{ runner.temp }}
+      - name: Install and exercise a fresh consumer
+        run: |
+          consumer=$(mktemp -d)
+          cp test/consumer.mjs "$consumer/"
+          cd "$consumer"
+          npm init -y
+          npm install --engine-strict "$RUNNER_TEMP"/dtelecom-server-sdk-js-*.tgz
+          node consumer.mjs

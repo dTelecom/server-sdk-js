@@ -12,7 +12,7 @@ Version 4 is for projects created in dTelecom Cloud, which have an API key and s
 npm install @dtelecom/server-sdk-js
 ```
 
-Node 18 or newer.
+Requires Node.js 20.18.0 or newer. Use a maintained Node.js LTS release for new projects.
 
 ## Setup
 
