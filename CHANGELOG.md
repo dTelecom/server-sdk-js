@@ -2,6 +2,8 @@
 
 ## 4.3.1 (2026-11-25)
 
+[SDK combinations and live-call verification](https://docs.dtelecom.org/reference/sdks/#tested-combinations)
+
 - Fresh CommonJS and ES module installations work on Node.js 20.18.0 and newer. Webhook registry lookups now use Solana’s HTTP RPC and address libraries.
 
 ## 4.3.0 (2026-11-24)

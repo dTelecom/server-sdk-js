@@ -252,3 +252,7 @@ The receiver reads the node registry on Solana. On the production network nothin
 ## License
 
 Apache 2.0
+
+## Release verification
+
+The Test workflow installs the packed SDK in fresh CommonJS and ES module consumers. On the maintained `v4` branch, maintainers can also select **Run workflow** and enable **live_call**. This joins two RTC participants using the candidate backend SDK, lists them through the room service, and checks that both receive a metadata update. The `sdk-live-tests` environment supplies the test project's Cloud credentials for that step. [Test workflow](https://github.com/dTelecom/server-sdk-js/actions/workflows/test.yaml)

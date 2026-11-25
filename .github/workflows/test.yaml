@@ -2,6 +2,11 @@ name: Test
 
 on:
   workflow_dispatch:
+    inputs:
+      live_call:
+        description: Issue Cloud tokens and administer a temporary room
+        type: boolean
+        default: false
   push:
     branches: [ main, dtelecom-db, v4 ]
   pull_request:
@@ -60,3 +65,36 @@ jobs:
           npm init -y
           npm install --engine-strict "$RUNNER_TEMP"/dtelecom-server-sdk-js-*.tgz
           node consumer.mjs
+
+  live-room:
+    if: github.event_name == 'workflow_dispatch' && inputs.live_call && github.ref == 'refs/heads/v4'
+    needs: [test, consumer]
+    runs-on: ubuntu-latest
+    environment: sdk-live-tests
+    permissions:
+      contents: read
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+      - uses: actions/download-artifact@v4
+        with:
+          name: consumer-package
+          path: ${{ runner.temp }}
+      - name: Install the candidate and the RTC participant in a fresh project
+        run: |
+          mkdir "$RUNNER_TEMP/sdk-room"
+          cp test/cloud-room.mjs "$RUNNER_TEMP/sdk-room/"
+          cd "$RUNNER_TEMP/sdk-room"
+          npm init -y
+          npm install --engine-strict "$RUNNER_TEMP"/dtelecom-server-sdk-js-*.tgz @dtelecom/server-sdk-node@0.3.3
+      - name: Join and administer a Cloud room
+        env:
+          DTELECOM_CLOUD_URL: ${{ secrets.DTELECOM_CLOUD_URL }}
+          DTELECOM_API_KEY: ${{ secrets.DTELECOM_API_KEY }}
+          DTELECOM_API_SECRET: ${{ secrets.DTELECOM_API_SECRET }}
+        run: node --test "$RUNNER_TEMP/sdk-room/cloud-room.mjs"
