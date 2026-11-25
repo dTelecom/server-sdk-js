@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 4.3.1 (2026-11-25)
 
 - Fresh CommonJS and ES module installations work on Node.js 20.18.0 and newer. Webhook registry lookups now use Solana’s HTTP RPC and address libraries.
 
