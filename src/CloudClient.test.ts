@@ -140,6 +140,7 @@ describe('CloudClient', () => {
             session_id: 'sess-1',
             token: 'tok',
             ws_url: 'wss://node.example',
+            fallback_urls: ['wss://node.example', 'wss://second.example'],
             region: 'Frankfurt',
             expires_at: '2030-01-01T00:00:00Z',
           },
@@ -184,6 +185,7 @@ describe('CloudClient', () => {
       expect(token).toEqual({
         token: 'tok',
         wsUrl: 'wss://node.example',
+        fallbackUrls: ['wss://node.example', 'wss://second.example'],
         sessionId: 'sess-1',
         region: 'Frankfurt',
         expiresAt: new Date('2030-01-01T00:00:00Z'),
@@ -212,6 +214,7 @@ describe('CloudClient', () => {
       expect(extended).toEqual({
         token: 'tok2',
         wsUrl: 'wss://node.example',
+        fallbackUrls: ['wss://node.example'],
         region: 'Frankfurt',
         expiresAt: new Date('2030-01-02T00:00:00Z'),
       });

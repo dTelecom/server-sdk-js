@@ -6,6 +6,9 @@
 
 Version 4 is for projects created in dTelecom Cloud, which have an API key and secret. If your project holds a Solana keypair and signs tokens itself, stay on 3.x (branch [`dtelecom-db`](https://github.com/dTelecom/server-sdk-js/tree/dtelecom-db)).
 
+
+The token result includes `wsUrl` and `fallbackUrls`, an ordered list beginning with that primary URL. Forward the list alongside the token to the room client to enable cross-node retry. An older Cloud deployment yields a list with just its original URL.
+
 ## Installation
 
 ```shell

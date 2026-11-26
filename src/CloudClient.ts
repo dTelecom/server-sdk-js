@@ -69,6 +69,8 @@ export interface ParticipantToken {
   token: string;
   /** Node URL (`wss://...`) for the client SDK. */
   wsUrl: string;
+  /** Ranked signaling URLs, including the primary. Older Cloud deployments supply only the primary. */
+  fallbackUrls?: string[];
   /** Session id for `extendToken` and `getSession`. */
   sessionId: string;
   /** Where the chosen node is: its city, else its country; empty when unknown. */
@@ -79,6 +81,8 @@ export interface ParticipantToken {
 export interface ExtendedToken {
   token: string;
   wsUrl: string;
+  /** Ranked signaling URLs, including the primary. Older Cloud deployments supply only the primary. */
+  fallbackUrls?: string[];
   /** The session's node location, as in `createToken`. */
   region: string;
   expiresAt: Date;
@@ -254,12 +258,14 @@ export class CloudClient {
       session_id: string;
       token: string;
       ws_url: string;
+      fallback_urls?: string[];
       region?: string;
       expires_at: string;
     }>('/v1/webrtc/token', body);
     return {
       token: res.token,
       wsUrl: res.ws_url,
+      fallbackUrls: res.fallback_urls ?? [res.ws_url],
       sessionId: res.session_id,
       region: res.region ?? '',
       expiresAt: new Date(res.expires_at),
@@ -281,6 +287,7 @@ export class CloudClient {
     const res = await this.post<{
       token: string;
       ws_url: string;
+      fallback_urls?: string[];
       region?: string;
       new_expires_at: string;
     }>('/v1/webrtc/token/extend', {
@@ -290,6 +297,7 @@ export class CloudClient {
     return {
       token: res.token,
       wsUrl: res.ws_url,
+      fallbackUrls: res.fallback_urls ?? [res.ws_url],
       region: res.region ?? '',
       expiresAt: new Date(res.new_expires_at),
     };
