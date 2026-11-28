@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.4.0 (2026-11-26)
+
+- `createToken` and `extendToken` return ranked `fallbackUrls` together with the primary `wsUrl`. Forward the list with the participant token so room clients can retry another node. [Release source](https://github.com/dTelecom/server-sdk-js/commit/0350bb9ac5b1fcca97f32f7ce7bd70f00dd28449)
+
 ## 4.3.1 (2026-11-25)
 
 [dTelecom SDK catalog](https://docs.dtelecom.org/reference/sdks/)

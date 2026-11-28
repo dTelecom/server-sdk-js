@@ -91,7 +91,7 @@ jobs:
           cp test/cloud-room.mjs "$RUNNER_TEMP/sdk-room/"
           cd "$RUNNER_TEMP/sdk-room"
           npm init -y
-          npm install --engine-strict "$RUNNER_TEMP"/dtelecom-server-sdk-js-*.tgz @dtelecom/server-sdk-node@0.3.3
+          npm install --engine-strict "$RUNNER_TEMP"/dtelecom-server-sdk-js-*.tgz @dtelecom/server-sdk-node@0.4.0
       - name: Join and administer a Cloud room
         env:
           DTELECOM_CLOUD_URL: ${{ secrets.DTELECOM_CLOUD_URL }}

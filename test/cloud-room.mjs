@@ -23,8 +23,8 @@ test('issue two Cloud tokens and manage their live room', { timeout: 90_000 }, a
   const bob = new Room();
   try {
     for (const [room, identity] of [[alice, 'alice'], [bob, 'bob']]) {
-      const { token, wsUrl } = await cloud.createToken({ room: roomName, identity, ttl: '2m' });
-      await room.connect(wsUrl, token);
+      const { token, wsUrl, fallbackUrls } = await cloud.createToken({ room: roomName, identity, ttl: '2m' });
+      await room.connect(wsUrl, token, { fallbackUrls });
       assert.equal(room.localParticipant.identity, identity);
     }
     await waitFor(
